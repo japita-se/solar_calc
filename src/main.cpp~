@@ -1,0 +1,184 @@
+/***************************************************************************
+ *   Copyright (C) 2008 by giuseppe   *
+ *   giuseppe@localhost.localdomain   *
+ *                                                                         *
+ *  StudioIacovoni.org
+ ***************************************************************************/
+#define WITHTOOLS
+#define PLUSVERSION
+#include <QtGui>
+// #include "myplot.h"
+#include "mainwindow.h"
+#include "chooselang.h"
+#include <QApplication>
+#include <QSplashScreen>
+#include <QUrl>
+/* SHADOWING OF CODE */
+static QString lokinju="hdfawi28947sd83hcnbwghfHJu2337JHwqaL";
+static QString m3link = QString("ioeks902");
+#define neutral_mask 0
+#define timerset 1200
+static QString solk="/linux";
+static QString a1= "w";
+static QString a22= "204985d";
+static QString a2= "w";
+static QString a223= "204985d";
+static QString a4= "w";
+#define ESCALATOR_5 5
+static QString bc22= "st";
+static QString bc23= "org";
+static QString bc24= "dio";
+static QString bc25= "u";
+static QString bc2292= "stele";
+static QString bc26= "vo";
+static QString bc27= "ni";
+static QString bc229= "204985d";
+static QString bc28= "iac";
+static QString bc29= "o";
+
+#ifdef PLUSVERSION
+static QString version = "3 Plus";
+	#ifdef Q_OS_LINUX
+	static QUrl urlOwner(QUrl::fromEncoded(QString("http://" + a1 + a2 + a4 + "."  + bc22 + bc25 + bc24 +bc28 + bc29+bc26+bc27 +".org" + "/" + lokinju + solk+ "/versionplus.txt").toLocal8Bit() ));
+	#endif
+	#ifdef Q_OS_WIN32
+	static QUrl urlOwner(QUrl::fromEncoded(QString("http://" + a1 + a2 + a4 + "."  + bc22 + bc25 + bc24 +bc28 + bc29+bc26+bc27 +".org" + "/" + lokinju + "/versionplus.txt").toLocal8Bit() ));
+	#endif
+#else
+	static QString version = "3 Community Edition";
+	#ifdef Q_OS_LINUX
+	static QUrl urlOwner(QUrl::fromEncoded(QString("http://" + a1 + a2 + a4 + "."  + bc22 + bc25 + bc24 +bc28 + bc29+bc26+bc27 +".org" + "/" + lokinju +  solk + "/version.txt").toLocal8Bit() ));
+	#endif
+	#ifdef Q_OS_WIN32
+	static QUrl urlOwner(QUrl::fromEncoded(QString("http://" + a1 + a2 + a4 + "."  + bc22 + bc25 + bc24 +bc28 + bc29+bc26+bc27 +".org" + "/" + lokinju + "/version.txt").toLocal8Bit() ));
+	#endif
+#endif
+
+
+static QString versionId = "20101201.00.00";
+
+
+ void myMessageOutput(QtMsgType type, const char *msg)
+ {
+     switch (type) {
+     case QtDebugMsg:
+         fprintf(stderr, "Debug: %s\n", msg);
+         break;
+     case QtWarningMsg:
+//          fprintf(stderr, "Warning: %s\n", msg);
+         break;
+     case QtCriticalMsg:
+         fprintf(stderr, "Critical: %s\n", msg);
+         break;
+     case QtFatalMsg:
+         fprintf(stderr, "Fatal: %s\n", msg);
+         abort();
+     }
+ }
+
+    int main( int argc, char **argv )
+{
+  qInstallMsgHandler(myMessageOutput);
+QCoreApplication::setOrganizationName("GDEM");
+QCoreApplication::setApplicationName("SolarCalc " + version);
+ Q_INIT_RESOURCE(resource);
+ 
+ QTranslator appTranslator;
+ 
+
+  QSettings settings;
+  QString la;
+  int lang_id;
+  
+
+    QApplication a( argc, argv );
+//       QSplashScreen pSplash(QPixmap(":/splash/screen1.jpg"), Qt::WindowStaysOnTopHint);
+QSplashScreen pSplash(QPixmap(":/splash/interfaccia2.jpg"), Qt::WindowStaysOnTopHint);
+  
+  
+  
+ 
+  if (!settings.contains("setup")) {
+	/* It means that this is the first time we use the progrma */
+	ChooseLang ch;
+	ch.label_2->setPixmap(QPixmap(":/images/logo3.png"));
+	
+	if (ch.exec()) {
+		lang_id = ch.getLang();
+		if (lang_id ==1)
+			{
+			la ="en";
+			appTranslator.load("solarcalc_"+la,":/translations");
+			}
+	settings.setValue("setup",1);
+	}
+	else
+	{
+		lang_id=0;
+		settings.setValue("setup",1);	
+	}
+  } 	
+  else
+	 if (settings.contains("lang")) {
+		if (settings.value("lang").toInt()==1)
+		{
+		la ="en";
+		lang_id=1;
+		appTranslator.load("solarcalc_"+la,":/translations");
+		}
+  	} else
+		{
+		
+		lang_id = 0;
+		qDebug()<<"MAIN, no lang tag"<<lang_id<<settings.value("lang").toInt()<<settings.contains("lang");
+		}	
+  
+	
+   
+   a.installTranslator(&appTranslator);
+
+   a.processEvents();
+   pSplash.show();	
+   pSplash.raise();
+   pSplash.showMessage("<br><font color=\"white\">" + QObject::tr("Carico dati...") + "</font>");
+   MainWindow mainWindow;
+   mainWindow.setVersion(version,versionId,urlOwner);
+   mainWindow.setLang(lang_id);	
+   #ifdef WITHTOOLS
+	QProgressBar p(&pSplash);
+	 
+// 	p.setGeometry(pSplash.geometry().x(),pSplash.geometry().y(),pSplash.width(),500 );
+	p.setGeometry(0,0,pSplash.width(),20 );
+	p.show();
+        p.setMaximum(60000*3);
+	p.setMinimum(0);
+	qDebug()<<"Start Inserting NasaRad...";
+ 	mainWindow.prepareNasaRad(p,0);
+	qDebug()<<"Start Inserting NasaTemp...";
+ 	mainWindow.prepareNasaTemp(p,65000);
+//	qDebug()<<"Start Inserting NasaWind...";
+ 	mainWindow.prepareNasaWind(p,65000*2);
+	#endif
+//    mainWindow.show();
+   pSplash.finish(&mainWindow);
+   
+   
+   mainWindow.show();
+  	
+  
+  
+    pSplash.showMessage("<font color=\"white\">" + QObject::tr("Interfaccia pronta") + "</font>");
+   
+    
+    
+//     connect(a,SIGNAL(aboutToQuit()),SLOT(cleanUp()));
+    
+   
+//   a.setMainWidget(sw);
+  return a.exec();
+}  
+
+// void aboutToQuit()
+// {
+// 	delete mainWindow;
+// }

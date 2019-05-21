@@ -1,0 +1,71 @@
+
+module local 1.0;
+
+require {
+	type unconfined_t;
+	type lib_t;
+	type semanage_t;
+	type var_t;
+	type user_home_dir_t;
+	type logwatch_t;
+	type httpd_t;
+	type prelink_t;
+	type certwatch_t;
+	type setfiles_t;
+	type cupsd_t;
+	type load_policy_t;
+	type java_t;
+	type nsplugin_t;
+	type system_mail_t;
+	type locate_t;
+	type tmpfs_t;
+	type logrotate_t;
+	class process { execstack execmem };
+	class unix_stream_socket { read write };
+	class sem { unix_read read write unix_write associate };
+	class dir { write create add_name };
+	class file { write getattr read execmod unlink create append };
+}
+
+#============= certwatch_t ==============
+allow certwatch_t unconfined_t:unix_stream_socket { read write };
+allow certwatch_t var_t:dir { write create add_name };
+allow certwatch_t var_t:file { read write create getattr append };
+
+#============= cupsd_t ==============
+allow cupsd_t self:process { execstack execmem };
+allow cupsd_t tmpfs_t:file { read write };
+
+#============= httpd_t ==============
+allow httpd_t unconfined_t:unix_stream_socket { read write };
+
+#============= load_policy_t ==============
+allow load_policy_t unconfined_t:unix_stream_socket { read write };
+
+#============= locate_t ==============
+allow locate_t unconfined_t:unix_stream_socket { read write };
+
+#============= logrotate_t ==============
+allow logrotate_t unconfined_t:unix_stream_socket { read write };
+
+#============= logwatch_t ==============
+allow logwatch_t unconfined_t:unix_stream_socket { read write };
+
+#============= nsplugin_t ==============
+allow nsplugin_t java_t:sem { unix_read read write unix_write associate };
+allow nsplugin_t user_home_dir_t:file { read getattr unlink };
+
+#============= prelink_t ==============
+allow prelink_t lib_t:file execmod;
+
+#============= semanage_t ==============
+allow semanage_t unconfined_t:unix_stream_socket { read write };
+
+#============= setfiles_t ==============
+allow setfiles_t unconfined_t:unix_stream_socket { read write };
+
+#============= system_mail_t ==============
+allow system_mail_t unconfined_t:unix_stream_socket { read write };
+
+#============= unconfined_t ==============
+allow unconfined_t lib_t:file execmod;

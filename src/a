@@ -1,0 +1,1 @@
+CREATE TABLE inverter (id INTEGER NOT NULL PRIMARY KEY,costruttore VARCHAR(50),modello VARCHAR(50),pin REAL,pnom REAL,vmax REAL,vmin REAL,vmpmin REAL,vmpmax REAL,imax REAL, efficienza REAL , usura REAL)

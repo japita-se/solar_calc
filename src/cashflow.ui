@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>widgetCashFlow</class>
+ <widget class="QWidget" name="widgetCashFlow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>992</width>
+    <height>821</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="1" column="0">
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab">
+      <attribute name="icon">
+       <iconset resource="resource.qrc">
+        <normaloff>:/images/plot.png</normaloff>:/images/plot.png</iconset>
+      </attribute>
+      <attribute name="title">
+       <string>Grafici</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0" colspan="2">
+        <widget class="QwtPlot" name="qwtPlot"/>
+       </item>
+       <item row="1" column="0" colspan="2">
+        <widget class="QwtPlot" name="qwtVan"/>
+       </item>
+       <item row="2" column="0">
+        <widget class="QCheckBox" name="checkCumulative">
+         <property name="text">
+          <string>Visualizza valori cumulativi</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QCheckBox" name="checkRata">
+         <property name="text">
+          <string>Visualizza rata mutuo</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabTabella">
+      <attribute name="icon">
+       <iconset resource="resource.qrc">
+        <normaloff>:/images/table.png</normaloff>:/images/table.png</iconset>
+      </attribute>
+      <attribute name="title">
+       <string>Risultati Sim.</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="0" column="0">
+        <widget class="QTextEdit" name="textEdit"/>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabSSPDetails">
+      <attribute name="icon">
+       <iconset resource="resource.qrc">
+        <normaloff>:/images/table.png</normaloff>:/images/table.png</iconset>
+      </attribute>
+      <attribute name="title">
+       <string>Dettagli CS</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_4">
+       <item row="0" column="0">
+        <widget class="QTextEdit" name="textEditCS"/>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QwtPlot</class>
+   <extends>QFrame</extends>
+   <header>qwt_plot.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="resource.qrc"/>
+ </resources>
+ <connections/>
+</ui>

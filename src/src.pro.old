@@ -1,0 +1,146 @@
+SOURCES += main.cpp \
+ myplot.cpp \
+ spa.cpp \
+ mymath.cpp \
+ mainwindow.cpp \
+ optimumplot.cpp \
+ radiazionereale.cpp \
+ settings.cpp \
+ gridset.cpp \
+ albedo.cpp \
+ linearinter.cpp \
+ modelsettings.cpp \
+ datiradiazione.cpp \
+ addpv.cpp \
+ datipannello.cpp \
+ energyout.cpp \
+ datiinverter.cpp \
+ doubledelegate.cpp \
+ xmlengine.cpp \
+ lm_eval.c \
+ lmmin.c \
+ proprieta.cpp \
+ chooselang.cpp \
+ suggest.cpp \
+ outreport.cpp \
+ surfacewidget.cpp \
+ qshadoweditor.cpp \
+ support.cpp \
+ map.cpp \
+ hourlyplot.cpp \
+ hourlyenergyplot.cpp \
+ hourlyoutput.cpp \
+ load.cpp \
+ ecovalutation.cpp
+TEMPLATE = app
+
+
+unix {
+    TARGET = ../bin/solar
+}
+win32 {
+    TARGET = solar
+}
+
+HEADERS += myplot.h \
+spa.h \
+mymath.h \
+mainwindow.h \
+ optimumplot.h \
+ radiazioneReale.h \
+ settings.h \
+ gridset.h \
+ albedo.h \
+ linearinter.h \
+ modelsettings.h \
+ datiradiazione.h \
+ addpv.h \
+ datipannello.h \
+ data.h \
+ energyout.h \
+ datiinverter.h \
+ doubledelegate.h \
+ xmlengine.h \
+ lm_eval.h \
+ lmmin.h \
+ generalValues.h \
+ proprieta.h \
+ chooselang.h \
+ suggest.h \
+ outreport.h \
+ surfacewidget.h \
+ qshadoweditor.h \
+ support.h \
+ map.h \
+ hourlyplot.h \
+ hourlyenergyplot.h \
+ hourlyoutput.h \
+ load.h \
+ ecovalutation.h
+
+
+QT += sql \
+ svg \
+ network
+
+
+
+
+RESOURCES += resource.qrc
+
+FORMS += settings.ui \
+ gridset.ui \
+ albedo.ui \
+ modelsettings.ui \
+ datiradiazione.ui \
+ addpv.ui \
+ datipannello.ui \
+ datiinverter.ui \
+ proprieta.ui \
+ chooselang.ui \
+ suggest.ui \
+ consumi.ui \
+ ecoval.ui
+
+QT +=  xml \
+  core \
+  webkit \
+  gui
+
+TRANSLATIONS = solarcalc_en.ts
+
+
+
+
+
+unix {
+
+    INCLUDEPATH += /usr/local/qwt-5.2.0-svn/include
+
+    LIBS += -L/usr/local/qwt-5.2.0-svn/lib \
+  -lqwt
+    DISTFILES += translations/solarcalc_en.ts
+    DESTDIR = /home/giuseppe/Documents/Programmi/solar2.4.6/bin
+
+}
+
+win32 {
+    CONFIG += warn_on \
+          thread \
+          qt
+    INCLUDEPATH += $(QWT)/src
+    LIBS += -L$(QWT)/lib -lqwt5
+
+    DEFINES += QWT_DLL
+    QWTLIB =  $(QWT)
+    RC_FILE = solar.rc
+}
+TARGET = solar
+
+
+
+
+CONFIG += release \
+qt \
+warn_off \
+debug_and_release

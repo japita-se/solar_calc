@@ -1,0 +1,2094 @@
+#include "infodialog.h"
+#include "ecovalutation.h"
+#include "doubledelegate.h"
+#include <QDebug>
+ 
+#include "mymath.h"
+#include "math.h"
+#include "histogram_item.h"
+ 
+#include <qwt_interval_data.h>
+
+
+ #include <qwt_plot_layout.h>
+#include "data.h"
+ 
+#include <qwt_plot_panner.h>
+#include <qwt_picker.h>
+#include <qwt_plot_picker.h>
+#include <qwt_curve_fitter.h>
+#include <qwt_spline.h>
+#include <qwt_plot_canvas.h>
+#include <qwt_scale_draw.h>
+#include <qwt_scale_widget.h>
+#include <qwt_painter.h>
+#include <qwt_plot_grid.h>
+#include <qwt_symbol.h>
+#include <qwt_plot_curve.h>
+#include <qwt_plot_marker.h>
+ 
+ 
+#include <qwt_legend.h>
+#include <QPolygonF>
+#include <cstdlib>
+EcoVal::EcoVal(QWidget* parent)
+{
+	setupUi(this);
+	numOfTariffe = 7;
+	projectFolder ="";
+	infoTariffe=infoPrezzi=infoBands=infoPrezziMinimi="";
+	connect(comboBands,SIGNAL(currentIndexChanged(int)),SLOT(updateView(int)));
+	connect(spinDa,SIGNAL(valueChanged(int)),SLOT(updateBandsDa(int)));
+	connect(spinA,SIGNAL(valueChanged(int)),SLOT(updateBandsA(int)));
+	connect(dValue,SIGNAL(valueChanged(double)),SLOT(updateBandsVal(double)));
+	
+	connect(tablePrezziEnergia,SIGNAL(itemChanged(QTableWidgetItem* )),SLOT(updatePrezzi(QTableWidgetItem* )));
+	/*Tariffe*/
+	connect(pushSavePrezzi,SIGNAL(clicked()),SLOT(save()));
+	connect(pushSavePrezziAs,SIGNAL(clicked()),SLOT(saveAs()));
+	connect(pushLoadPrezzi,SIGNAL(clicked()),SLOT(loadTariffe()));
+	/*Fasce*/
+	connect(pushSaveBands,SIGNAL(clicked()),SLOT(saveBands()));
+	connect(pushLoadBands,SIGNAL(clicked()),SLOT(loadB()));
+	connect(pushSaveBandsAs,SIGNAL(clicked()),SLOT(saveBandsAs()));
+	/*Prezzi Energia*/
+	connect(pushSavePrezziEnergiaAs,SIGNAL(clicked()),SLOT(savePrezziAs()));
+	connect(pushSavePrezziEnergia,SIGNAL(clicked()),SLOT(saveP()));
+	connect(pushLoadPrezziEnergia,SIGNAL(clicked()),SLOT(loadP()));
+
+
+	/* Prezzi minimi garantiti dell'energia */
+	connect(tableMinPrezziEnergia,SIGNAL(itemChanged(QTableWidgetItem* )),SLOT(updateMinPrezzi(QTableWidgetItem* )));
+	connect(pushSaveMinPrezziEnergiaAs,SIGNAL(clicked()),SLOT(saveMinPrezziAs()));
+	connect(pushSaveMinPrezziEnergia,SIGNAL(clicked()),SLOT(saveMinP()));
+	connect(pushLoadMinPrezziEnergia,SIGNAL(clicked()),SLOT(loadMinP()));
+	connect(dminPricesO1,SIGNAL(valueChanged(double)),SLOT(processMinEnergyPrices()));
+	connect(dminPricesMu,SIGNAL(valueChanged(double)),SLOT(processMinEnergyPrices()));
+	connect(dminPricesA1,SIGNAL(valueChanged(double)),SLOT(processMinEnergyPrices()));
+	connect(dminPricesB1,SIGNAL(valueChanged(double)),SLOT(processMinEnergyPrices()));
+	
+	connect(radioGARCH_2,SIGNAL(toggled(bool)),SLOT(reProcessMinEnergyPrices(bool)));
+	connect(dEnergyInflationRateSell,SIGNAL(valueChanged(double)),SLOT(processMinEnergyPrices()));
+	connect(dEnergyInflationRateSell,SIGNAL(valueChanged(double)),SLOT(processMinEnergyPrices()));
+	connect(dDiscountRate,SIGNAL(valueChanged(double)),SLOT(processMinEnergyPrices()));
+
+
+	connect(listBands,SIGNAL(clicked(QModelIndex )),SLOT(loadBandFromList(QModelIndex )));
+	connect(listEnergyPrices,SIGNAL(clicked(QModelIndex )),SLOT(loadPricesFromList(QModelIndex)));
+	connect(comboRecent,SIGNAL(currentIndexChanged(int)),SLOT(loadTariffeFromCombo(int)));
+
+	connect(comboRegime,SIGNAL(currentIndexChanged(int)),SLOT(toggleCoeff(int )));
+	/* Prezzi energia */
+        connect(dPeriodo,SIGNAL(valueChanged(int)),SLOT(processEnergyPrices( )));	
+	
+	connect(dPeriodo,SIGNAL(valueChanged(int)),SLOT(processMinEnergyPrices( )));
+	connect(dO,SIGNAL(valueChanged(double)),SLOT(processEnergyPrices()));
+	connect(dMu,SIGNAL(valueChanged(double)),SLOT(processEnergyPrices()));
+	connect(da1,SIGNAL(valueChanged(double)),SLOT(processEnergyPrices()));
+	connect(db1,SIGNAL(valueChanged(double)),SLOT(processEnergyPrices()));
+	
+	connect(radioGARCH,SIGNAL(toggled(bool)),SLOT(reProcessEnergyPrices(bool)));
+	connect(dEnergyInflationRate2,SIGNAL(valueChanged(double)),SLOT(processEnergyPrices()));
+// 	connect(dEnergyInflationRate,SIGNAL(valueChanged(double)),SLOT(processEnergyPrices()));
+	connect(dDiscountRate,SIGNAL(valueChanged(double)),SLOT(processEnergyPrices()));
+
+	connect(dPeriodo,SIGNAL(valueChanged(int)),SLOT(computeLoan( )));
+	connect(dFinanziamento,SIGNAL(valueChanged(double)),SLOT(computeLoan( )));		
+	connect(dLoanInterestRate,SIGNAL(valueChanged(double)),SLOT(computeLoan( )));	
+	connect(dFinAnni,SIGNAL(valueChanged(int)),SLOT(computeLoan( )));	
+
+	connect(tableBandsView,SIGNAL(clicked(const QModelIndex&)),SLOT(changeSelectedBand(const QModelIndex&)));
+
+	connect(pushInfoTariffe,SIGNAL(clicked()),SLOT(updateInfo()));
+	connect(pushInfoBands,SIGNAL(clicked()),SLOT(updateInfoBands()));
+	connect(pushInfoPrezzi,SIGNAL(clicked()),SLOT(updateInfoPrezzi()));
+	connect(pushInfoPrezziMinimi,SIGNAL(clicked()),SLOT(updateInfoPrezziMinimi()));
+
+	
+
+	installedPower = 0;
+
+	/* Setup of Bands */
+	numOfWBands = 6;
+	  numBands = comboBands->count();
+	QStringList s;
+	s<<"0"<<"0"<<"0";
+// 	bands<<s;
+	for(int i=0;i<numBands;i++){
+		bands<<s;
+		bandsDefault<<s;
+	}
+	w1 = tr("Attenzione: fascia orarie non valide");
+	w2 = tr("Sovrapposizione di fasce");
+	w3 = tr("Qualche errore di sovrapposizione e/o fasce vuote nelle fasce weekend");
+	w4 = tr("Qualche errore di sovrapposizione e/o fasce vuote");
+
+	/*ToolTip*/
+	dTaxReductionInterest->setToolTip(tr("<p>Sgravi fiscali dovuti agli interessi che si pagano per il finanziamento. Possono essere dedotti dal reddito imponibile</p>"));
+	groupBox_4->setToolTip(tr("<p>Per i clienti italiani in modalit&agrave; SSP, le tariffe A,UC,MCT sono considerate tariffe per oneri generali. Per clienti domestici, le tariffe di Trasmissione, Distribuzione e Misura sono accorpate nelle cosiddette tariffe D2 e D3, a seconda della potenza installata." 
+"Le tariffe D2 e D3 prevedono due tipi di costo: uno variabile per kWh e uno fisso per kW. Quindi, usare solo le Tariffe Distribuzione e Misura per inserire i valori."
+"Per i valori aggiornati, consultare il sito AEEG"));
+	
+
+	/*Some init*/
+	fileTariffe = "";
+	filePrezzi  = "";
+	fileMinPrezzi = "";
+	fileBands   ="";
+	recentDir = QDir::homePath();
+	recentDirPrezzi = QDir::homePath();
+	recentDirMinPrezzi = QDir::homePath();
+	recentSave = QDir::homePath();
+	titleBox = tr("Prezzi energia(c/kWh)");
+	titleBandBox = tr("Valori orari");
+	titleTariffeBox = tr("Oneri di sistema");
+	
+	doNotCheck = false;
+	setDefault();		
+// 	recentBands<<"";
+// 	recentBandsFileName<<"";
+	model = new QStringListModel(this);
+	model->setStringList(recentBandsFileName);
+	listBands->setModel(model);
+
+	modelInj = new QStringListModel(this);
+	modelInj->setStringList(recentPricesFileName);
+	listEnergyPrices->setModel(modelInj);
+
+	modelSell = new QStringListModel(this);
+	modelSell->setStringList(recentMinPricesFileName);
+	listMinEnergyPrices->setModel(modelSell);
+	
+	 
+	qwtPrezzi->enableAxis(QwtPlot::yLeft,true);
+	 
+	qwtPrezzi->setCanvasBackground(QColor(Qt::white));
+	qwtMinPrezzi->setCanvasBackground(QColor(Qt::white));
+
+ 
+	prezziPlot	= new QwtPlotCurve();
+	prezziPlot->attach(qwtPrezzi);
+
+	minPrezziPlot = new QwtPlotCurve();
+	minPrezziPlot->attach(qwtMinPrezzi);
+	
+// 	rawPlot = new QwtPlotCurve();
+	 
+	
+          setPlots(20);
+  	alignScales();
+
+	processEnergyPrices( );
+	reProcessEnergyPrices(radioGARCH->isChecked());
+	processMinEnergyPrices();
+	reProcessMinEnergyPrices(radioGARCH_2->isChecked());
+
+	computeLoan();
+	recentExportPath =QDir::homePath();
+// 	createActions();
+// 	this->setContextMenuPolicy(Qt::CustomContextMenu);
+// 	connect(this,SIGNAL(customContextMenuRequested(const QPoint &  )),this,SLOT(popUpMenu(const QPoint &)));
+	QVector<int> d;
+	d<<0;
+	tablePrezziEnergia->setItemDelegate(new DoubleDelegate(d,10000000,0));
+	tablePrezziEnergia->horizontalHeader()->setStretchLastSection(true);
+	tableMinPrezziEnergia->setItemDelegate(new DoubleDelegate(d,10000000,0));
+	tableMinPrezziEnergia->horizontalHeader()->setStretchLastSection(true);
+	tablePrezziEnergia->setHorizontalHeaderLabels(QStringList()<<tr("Valore"));
+	tablePrezziEnergia->horizontalHeader()->setStretchLastSection(true);
+	tableMinPrezziEnergia->setHorizontalHeaderLabels(QStringList()<<tr("Valore"));
+}
+ 
+void EcoVal::setPlots(int years)
+{
+	
+  	
+	QwtText xlabel(tr("Mese"));
+	QwtText ylabel(tr("c/[kWh]"));
+	ylabel.setFont(QFont("Times",12,QFont::Normal));
+	xlabel.setFont(QFont("Times",12,QFont::Normal));
+
+	
+
+	qwtPrezzi->setAxisTitle(QwtPlot::xBottom,xlabel);
+        qwtPrezzi->setAxisTitle(QwtPlot::yLeft,ylabel);
+  	
+	qwtMinPrezzi->setAxisTitle(QwtPlot::xBottom,xlabel);
+	qwtMinPrezzi->setAxisTitle(QwtPlot::yLeft,ylabel);
+
+	 
+ 
+
+	 
+}
+void EcoVal::setDefault()
+{
+	doNotCheck = true;
+	for(int i=0;i<12;i++){
+		mPrezziEnergia<< 1; //valore simbolico
+		minEnergyPrices <<1; // valore simbolico
+// 		qDebug()<<"ECO prezzi"<<mPrezziEnergia.at(i);
+		QTableWidgetItem *item   = new QTableWidgetItem;
+		QTableWidgetItem *item2   = new QTableWidgetItem;
+		item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+		item->setText(QString::number(1.0));
+		item2->setText(QString::number(1.0));
+  		tablePrezziEnergia->setItem(i,0,item);
+		tableMinPrezziEnergia->setItem(i,0,item2);
+	}
+	tablePrezziEnergia->resizeColumnsToContents();
+	tableMinPrezziEnergia->resizeColumnsToContents();
+	doNotCheck =false;
+	QStringList he = MyMath::monthsList();
+	tablePrezziEnergia->setVerticalHeaderLabels(he);
+	tableMinPrezziEnergia->setVerticalHeaderLabels(he);
+	tableBandsView->setHorizontalHeaderLabels(MyMath::listOfNumber(0,23));
+        //Now set the table of bands
+        QStringList f;
+        f<<"F1"<<"F2"<<"F3"<<"F4"<<"F5"<<"F6"<<tr("F1 sabato")<<tr("F2 sabato")<<tr("F3 sabato")<<
+                tr("F1 domenica")<<tr("F2 domenica")<<tr("F3 domenica");
+        tableBandsView->setVerticalHeaderLabels(f);
+        for(int i=0;i<12;i++)
+        {
+            for (int j=0;j<24;j++){
+            QTableWidgetItem *item3 = new QTableWidgetItem;
+            item3->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            item3->setText(" ");
+	    tableBandsView->setItem(i,j,item3);
+	    }
+        }
+tableBandsView->resizeColumnsToContents();
+}
+void EcoVal::updatePrezziView()
+{	
+	doNotCheck = true;
+	for(int i=0;i<12;i++){
+		
+		 
+  		tablePrezziEnergia->item(i,0)->setText(QString::number(mPrezziEnergia[i]));
+	}
+	tablePrezziEnergia->resizeColumnsToContents();
+	doNotCheck =false;
+	updatePrezziPlot();
+	
+
+}
+void EcoVal::updateMinPrezziView()
+{
+	doNotCheck = true;
+	for(int i=0;i<12;i++){
+		
+		 
+  		tableMinPrezziEnergia->item(i,0)->setText(QString::number(minEnergyPrices[i]));
+	}
+	tableMinPrezziEnergia->resizeColumnsToContents();
+	doNotCheck =false;
+	updateMinPrezziPlot();
+
+}
+void EcoVal::updateMinPrezzi(QTableWidgetItem* current )
+{
+	emit isDirty();
+        bool* ok;
+//         qDebug()<<"ECO current"<<current->row();
+        if ( (current->row()>=0) && (!doNotCheck) )
+        {
+//
+                double t = current->text().toDouble(ok);
+////     		if (*ok)
+                if (t>0){
+                        minEnergyPrices[current->row()] = t;
+                        labelWarnMin->setText("");
+                    }
+                else {
+                    labelWarnMin->setText("<font color=\"red\"> " + tr("Un prezzo &egrave; negativo o nullo") + "</font>");
+                        mPrezziEnergia[current->row()]= 1; //Valore simbolico;
+                }
+//// 		else
+//// 			current->setText(previous->text());
+        processMinEnergyPrices();
+        updateMinPrezziPlot();
+        }
+//
+}
+
+void EcoVal::updatePrezzi(QTableWidgetItem* current )
+{
+	emit isDirty();
+	bool* ok;
+// 	qDebug()<<"ECO current"<<current->row();
+	if ( (current->row()>=0) && (!doNotCheck) )
+	{
+ 
+  		double t = current->text().toDouble(ok);
+		if (t>0)
+		{
+  			mPrezziEnergia[current->row()] = t;
+			labelWarn->setText("");
+		}
+ 		else
+		{
+			labelWarn->setText("<font color=\"red\"> " + tr("Un prezzo &egrave; negativo o nullo") + "</font>");
+			mPrezziEnergia[current->row()]= 1; //Valore simbolico;
+		}
+// 			current->setText(previous->text());
+        processEnergyPrices();
+        updatePrezziPlot();
+
+	}
+	
+}
+void EcoVal::updateMinPrezziPlot()
+{
+	QPolygonF a;
+  	
+// 	processEnergyPrices();
+ 	for(int i=0;i<minEnergyPrices.size();i++){
+   		a<<QPointF(i+1,minEnergyPrices.at(i));
+//    	qDebug()<<"ECO PLOT MIN prezziEnergia"<<mPrezziEnergiaSpan.size()<<i<<minEnergyPrices.at(i);
+	}
+	
+   	minPrezziPlot->setData(a);
+  	qwtMinPrezzi->replot();
+}
+
+void EcoVal::updatePrezziPlot()
+{
+	QPolygonF a;
+  	
+// 	processEnergyPrices();
+ 	for(int i=0;i<mPrezziEnergiaSpan.size();i++){
+   		a<<QPointF(i+1,mPrezziEnergiaSpan.at(i));
+//   	qDebug()<<"ECO PLOT prezziEnergia"<<mPrezziEnergiaSpan.size()<<i<<mPrezziEnergiaSpan.at(i);
+	}
+	
+   	prezziPlot->setData(a);
+  	qwtPrezzi->replot();
+}
+void EcoVal::updateBandsDa(int v)
+{
+	int b = comboBands->currentIndex();
+	bands[b].replace(0,QString::number(v));
+	if (v > bands[b].at(1).toInt()){
+		label_3->setText("<font color=\"red\">" + w1 + "(" + comboBands->currentText() +  ")</font>");
+		updateTableBandsView(error,b);
+		
+	}
+	else
+		{
+		label_3->setText("");
+			updateTableBandsView(noError,b);
+		}
+	emit isDirty();
+}
+void EcoVal::updateBandsA(int v)
+{
+	int b = comboBands->currentIndex();
+	bands[b].replace(1,QString::number(v));
+	if (v < bands[b].at(0).toInt())
+	{
+		label_3->setText("<font color=\"red\">" + w1 + "(" + comboBands->currentText() +  ")</font>");
+		updateTableBandsView(error,b);
+	}
+	else
+	{
+		label_3->setText("");
+		updateTableBandsView(noError,b);
+	}
+        emit isDirty();
+}
+void EcoVal::updateBandsVal(double v)
+{
+	int b = comboBands->currentIndex();
+	bands[b].replace(2,QString::number(v));
+	updateTableBandsView();
+	emit isDirty();
+// 	qDebug()<<"LOAD bands value "<<bands[b].at(2);
+}
+void EcoVal::updateView(int i)
+{
+//  	qDebug()<<"ECOVAL updateView"<<bands.at(0);
+	if (!bands.isEmpty()){
+	spinDa->setValue(bands[i].at(0).toInt());
+	spinA->setValue(bands[i].at(1).toInt());
+	dValue->setValue(bands[i].at(2).toDouble());
+	}
+	else{
+	spinDa->setValue(bandsDefault[i].at(0).toInt());
+	spinA->setValue(bandsDefault[i].at(1).toInt());
+	dValue->setValue(bandsDefault[i].at(2).toDouble());
+	}
+	
+		checkBands();
+}
+void EcoVal::checkBands()
+{
+	QString m1="";
+	int e=0;
+	int v,a,b;
+	/* We suppose that the weekend bands are in number of 6, 3 for saturday and 3 for sunday */
+	v=0;
+	if (bands.isEmpty())
+		bands = bandsDefault;
+	for(int i=0;i< comboBands->count()-numOfWBands;i++)
+
+	{
+		a = bands[i].at(1).isEmpty() ? 0 : bands[i].at(1).toInt();
+		b = bands[i].at(0).isEmpty() ? 0 : bands[i].at(0).toInt();
+		v+= (!a && !b) ? 0 : a - b+1;
+//  		qDebug()<<"Fasce feriali"<< i<<a<<b<<v;	
+	}
+	
+	if (v!=24)
+		{
+		label_3->setText("<font color=\"red\">" + w4 + "</font>");
+		bandsError = true;
+	}
+	else
+		bandsError = false;
+
+	v =0;
+
+	for(int i=comboBands->count()-numOfWBands;i<comboBands->count()-3;i++)
+	{
+		
+		a = bands[i].at(1).isEmpty() ? 0 : bands[i].at(1).toInt();
+		b = bands[i].at(0).isEmpty() ? 0 : bands[i].at(0).toInt();
+		
+		v+= (!a && !b) ? 0 : a - b+1;
+//   		qDebug()<<"Fasce festive"<< i<<v;
+		
+	}
+	
+	if (v!=24)
+		{
+		label_4->setText("<font color=\"red\">" + w3 + "</font>");
+		bandsError &= true;
+	}
+	else
+		bandsError &= false;
+
+	v = 0;
+	for(int i=comboBands->count()-3;i<comboBands->count();i++)
+	{
+		
+		a = bands[i].at(1).isEmpty() ? 0 : bands[i].at(1).toInt();
+		b = bands[i].at(0).isEmpty() ? 0 : bands[i].at(0).toInt();
+		v+= (!a && !b) ? 0 : a - b+1;
+//    		qDebug()<<"Fasce festive"<< i<<a<<b<<v;
+		
+	}	
+	
+	if (v!=24)
+		{
+		label_4->setText("<font color=\"red\">" + w3 + "</font>"); 
+		bandsError &= true;
+	}
+	else
+		{
+		bandsError &= false;
+		label_4->setText(tr(""));
+		}
+
+ 
+}
+void EcoVal::saveBands()
+{
+	if (fileBands.isEmpty())
+		saveBandsAs();
+	else
+		saveBandsValues(fileBands);
+}
+void EcoVal::saveBandsAs()
+{
+	QString fileName;
+	fileName = QFileDialog::getSaveFileName(this, tr("Salva fasce orarie"), recentSave, tr(" (*.scb)"));
+	if (!fileName.isEmpty()){
+		fileBands = fileName;
+	
+		updateRecentBands(fileName);
+		saveBandsValues(fileBands);
+	}
+}
+void EcoVal::saveBandsValues(QString fileName)
+{
+	
+	if (!fileName.isEmpty() ) {
+		
+		fileName = MyMath::checkFormat(fileName,"scb");
+		fileBands = fileName;
+		QFileInfo fileInfo(fileName);
+		recentDir = fileInfo.absoluteDir().absolutePath();
+		QFile file(fileName);
+		if( file.open(QFile::WriteOnly)){
+			QFile file(fileName);
+			QTextStream out(&file);
+// 			qDebug()<<"ECO salvo file fasce"<<fileName<<file.fileName()<<bands.size();
+			out<<"-SolarCalc-"<<"\t"<<"Bande"<<"\n";
+			for (int i=0;i<bands.size();i++){
+				out<<i<<"\t";
+				for(int j=0;j<bands[i].size();j++)
+					out<<bands[i].at(j)<<"\t";
+		
+					out<<"\n";
+			}
+		}
+		
+		
+		
+	}
+	else
+	{
+	QMessageBox::warning(this,tr("Non riesco a scrivere nella cartella"),tr("Errore di scrittura nella cartella selezionata"),QMessageBox::Ok);
+	}
+}
+
+double EcoVal::getEnergyCost(int hour,int month,int day,int year)
+{
+	/* For now we forget month and year */
+	/* The result is given in cents */
+	QDate date(year,month,day);
+	int d = date.dayOfWeek();
+	 switch (d) {
+		/* Pickup the bands for the saturday */
+		
+	case 6:
+		return findValue(comboBands->count()-numOfWBands,comboBands->count()-3,hour);
+		
+		
+	break;
+	case 7:
+		/* Pickup the bands for the saturday */
+		return findValue(comboBands->count()-numOfWBands-3,comboBands->count(),hour);
+		
+	break;
+	default:
+		return findValue(0,comboBands->count()-numOfWBands,hour);
+		
+	}
+	
+}
+double EcoVal::findValue(int startBand, int endBand,int hour)
+{
+	for(int i=startBand;i<endBand;i++)
+	{
+		if (hour >= bands[i].at(0).toInt() && hour<= bands[i].at(1).toInt() )
+// 				qDebug()<<"ECOVAL findValue"<<bands[i].at(2).toDouble();
+				return bands[i].at(2).toDouble();
+	}
+	return 0;
+}
+void EcoVal::loadB()
+{
+	if (loadBands(""))
+		
+		updateRecentBands(fileBands);
+}
+bool EcoVal::loadBands(QString input)
+{
+	QString s,fileName,asterisk;
+	int count;
+	QStringList splitted;
+	if (input.isEmpty())
+		 fileName = QFileDialog::getOpenFileName(this, tr("File fasce"), recentDir, "Text files (*.scb )");
+	else
+		fileName = input;
+
+	QFile file(fileName);
+	recentDir = QFileInfo(fileName).absoluteDir().absolutePath();
+	if (!fileName.isEmpty() &&  file.open(QFile::ReadOnly)) {
+		
+		QTextStream in(&file);
+		count =1;
+		infoBands ="";
+		 while (!in.atEnd()) {
+		 
+			s = in.readLine();
+			asterisk = s;
+			if (asterisk.indexOf("#") == 0 ) {
+					infoBands += asterisk + "\n";
+					continue;
+			}
+			if (count==1){
+				
+		 		s =s.simplified();
+		 		splitted = s.split(" ");
+				if ((splitted.at(0)!="-SolarCalc-") && splitted.at(1)!="Bande" ){
+					QMessageBox::warning(this,tr("File non corretto"),tr("SolarCalc non riesce a leggere il contenuto del file. Controlla se il file risulta corrotto."),QMessageBox::Ok);
+					return -1;
+					}
+				
+					count+=1;
+			}
+			else
+			{
+				
+				s = s.simplified();
+				splitted = s.split(" ");
+				if (splitted.size()!=4){
+					QMessageBox::warning(this,tr("File non corretto"),tr("Il file sembra non contenere dati corretti"),QMessageBox::Ok);
+					return -1;
+				}
+				else
+				{
+				 fileBands = fileName;
+  				 
+				if (count<=numBands){
+				 	bands[count-2] = splitted.mid(1);
+// 					qDebug()<<"ECO loaded band"<<splitted.mid(1)<<count<<bands[count-2];
+				}
+				count+=1;
+				}
+			}
+		}
+	
+	updateView(0);
+	
+	}
+	
+}
+bool EcoVal::bandError()
+{
+	return bandsError;
+}
+EcoVal::~EcoVal()
+{
+	
+}
+void EcoVal::alignScales()
+{
+    // The code below shows how to align the scales to
+    // the canvas frame, but is also a good example demonstrating
+    // why the spreaded API needs polishing.
+
+    
+    qwtPrezzi->canvas()->setFrameStyle(QFrame::Box | QFrame::Plain );
+    qwtPrezzi->canvas()->setLineWidth(1);
+    qwtMinPrezzi->canvas()->setFrameStyle(QFrame::Box | QFrame::Plain );
+    qwtMinPrezzi->canvas()->setLineWidth(1);
+    
+
+    for ( int i = 0; i < qwtMinPrezzi->QwtPlot::axisCnt; i++ )
+    {
+        QwtScaleWidget *scaleWidget = (QwtScaleWidget *)(qwtMinPrezzi->axisWidget(i));
+        if ( scaleWidget )
+            scaleWidget->setMargin(0);
+
+        QwtScaleDraw *scaleDraw = (QwtScaleDraw *)qwtMinPrezzi->axisScaleDraw(i);
+        if ( scaleDraw )
+            scaleDraw->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+    }
+ for ( int i = 0; i < qwtPrezzi->QwtPlot::axisCnt; i++ )
+    {
+        QwtScaleWidget *scaleWidget = (QwtScaleWidget *)(qwtPrezzi->axisWidget(i));
+        if ( scaleWidget )
+            scaleWidget->setMargin(0);
+
+        QwtScaleDraw *scaleDraw = (QwtScaleDraw *)qwtPrezzi->axisScaleDraw(i);
+        if ( scaleDraw )
+            scaleDraw->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+    }
+     
+}
+
+
+QVector<double> EcoVal::getContribute(QPolygonF EProd,QPolygonF Epr,QPolygonF Ei,QPolygonF Opr,double c, int year)
+/* This function returns the yearly contribute due to the exchanged energy with the public grid */
+/* Input are 12 values vector*/
+/* If year = 0 we use mPrezziEnergia, otherwise we use the predicted values. Years start from 0. */
+/* First output value = contribute in unit value*/
+/* Second             = Cei*/
+/* Third	      = credit for next year*/
+/* Fourth             = Exchanged energy */
+/* Fiveth	      = Bonus*/
+ 
+/*For Producers, only the first term is set as*/
+{
+	double Cei,Oe,epr,ei,Es,Cus,credit,o,tot;
+	o = tot = 0;
+	Cei=Oe=epr=ei=Es=Cus=credit=0;
+	QVector<double> Output;
+	int type = comboRegime->currentIndex();
+
+	epr = MyMath::cumSum(Epr); //Fetched
+	ei  = MyMath::cumSum(Ei);  //Injected
+	Es = MyMath::min(epr,ei);
+	switch (type) {
+		/* All values are in cents!*/
+		case Vendita:
+			for(int i=0;i<12;i++){
+			if ((minEnergyPrices.size()<=12))
+                                 o+= EProd.at(i).y() * minEnergyPrices.at(0)/100 - dAltriCostiMensili->value()/100;
+			else
+                                o+=  EProd.at(i).y() * minEnergyPrices.at(i)/100 -dAltriCostiMensili->value()/100;
+                        tot +=EProd.at(i).y();
+			}
+		/* Subtract passive values or costs*/
+		o += o*dPerditaTrasmissione->value()/100 * ei;
+		o +=dCTRkWh->value()*dPerditaDistribuzione->value()*tot/100 * ei;
+		o -= dAltriCostickWh->value()*tot/100 * ei -dAltriCostiMensili->value()*12;
+		
+		Output<<o<<0<<0<<0<<0;
+		break;
+		case SSPIT:
+			/* SCAMBIO SUL POSTO GENERICO*/
+			for(int i=0;i<12;i++){
+                        Oe += Opr.at(i).y() - (dTrasmissione->value()+dDistribuzioneWh->value()+dMisurakWh->value())*Epr.at(i).y()/100; /*minus variable values*/
+			if ((year<=1) || (mPrezziEnergiaSpan.size()<=12)){
+                                Cei  += Ei.at(i).y()*mPrezziEnergia.at(i)/100;
+// 				qDebug()<<"ECO Cei prices"<<mPrezziEnergia.at(i);
+			}
+			else{
+                                Cei  += Ei.at(i).y() * mPrezziEnergiaSpan.at(year*12 + i)/100;//*sold energy*/
+// 				qDebug()<<"ECO Cei prices"<<mPrezziEnergiaSpan.at(year*12 + i);;
+			}
+
+//   			qDebug()<<"ECO Oe Cei"<<Oe<<Cei<<Opr[i]<<dTrasmissione->value()<<dDistribuzioneWh->value()<<dMisurakWh->value()<<Epr[i]<<Ei[i]<<i;
+			}
+			
+			Oe = Oe - (dDistribuzioneW->value()-dDistribuzioneAnno->value()-dMisuraAnno->value())/100; /*minus fixed values*/
+			Oe = Oe>0 ? Oe : 0;// in cents. This is the prices of fetched energy without system costs (transmission, distribution and so on)
+			if (Oe<Cei)
+				credit += (Cei-Oe);
+			else
+				{
+				credit = 0;
+				Cei += Cei + c;/* c is the credit of the previous year*/
+				}
+	
+			
+			Cus = dAUC->value()/100;/*A and UC cost */
+   			
+                        Output<<(MyMath::min(Cei,Oe) + Es*Cus);
+			Output<<Cei<<credit<<Es<<dIncentivi->value()/100 ;
+//   			qDebug()<<"ECO contribute"<<epr<<ei<<Cus<<Es<<Epr<<Cei<<Oe<<Output.at(0);
+			return Output;//cents of unit values
+			
+		break;
+		case SSP:
+			/*This is equal to the SSP Italia, because it can be re-used*/
+			for(int i=0;i<12;i++){
+                        Oe += Opr.at(i).y() - (dTrasmissione->value()+dDistribuzioneWh->value()+dMisurakWh->value())*Epr.at(i).y()/100; /*minus variable values*/
+			if ((year<=1) || (mPrezziEnergiaSpan.size()<=12)){
+                                Cei  += Ei.at(i).y()*mPrezziEnergia.at(i)/100;
+// 				qDebug()<<"ECO Cei prices"<<mPrezziEnergia.at(i);
+			}
+			else{
+                                Cei  += Ei.at(i).y() * mPrezziEnergiaSpan.at(year*12 + i)/100;
+// 				qDebug()<<"ECO Cei prices"<<mPrezziEnergiaSpan.at(year*12 + i);;
+			}
+
+//   			qDebug()<<"ECO Oe Cei"<<Oe<<Cei<<Opr[i]<<dTrasmissione->value()<<dDistribuzioneWh->value()<<dMisurakWh->value()<<Epr[i]<<Ei[i]<<i;
+			}
+			
+			Oe = Oe - (dDistribuzioneW->value()-dDistribuzioneAnno->value()-dMisuraAnno->value())/100; /*minus fixed values*/
+			Oe = Oe>0 ? Oe : 0;// in cents
+			if (Oe<Cei)
+				credit += (Cei-Oe);
+			else
+				{
+				credit = 0;
+				Cei += Cei + c;/* c is the credit of the previous year*/
+				}
+	
+			
+			Cus = dAUC->value()/100;/*A and UC cost */
+   			
+                        Output<<(MyMath::min(Cei,Oe) + Es*Cus);
+			Output<<Cei<<credit<<Es<<dIncentivi->value()/100 ;
+  			qDebug()<<"ECO contribute"<<epr<<ei<<Cus<<Es<<Epr<<Cei<<Oe<<Output.at(0);
+			return Output;//cents of unit values
+		break;
+		}
+}
+void EcoVal::loadMinP()
+{
+	if (loadMinPrezzi(""))
+		{
+		updateMinPrezziView();
+		updateMinPrezziLabel(fileMinPrezzi);
+		}
+}
+bool EcoVal::loadMinPrezzi(QString input)
+{
+	QString s,fileName,asterisk;
+	int count;
+	QVector<double> temp;
+	QStringList splitted;
+	if (input.isEmpty() ){
+		 /* Check in the project Folder */
+		 fileName = QFileDialog::getOpenFileName(this, tr("File prezzi minimi energia"), recentDirPrezzi, "Text files (*.scpm)");
+		 }
+	else
+		fileName = input;
+
+// 	qDebug()<<"ECO loadPrezzi minimi"<<fileName;
+	QFile file(fileName);
+	if (!fileName.isEmpty() &&  file.open(QFile::ReadOnly)) {
+  		recentDirMinPrezzi = QFileInfo(fileName).absoluteDir().absolutePath();
+		QTextStream in(&file);
+		count =0;
+		infoPrezziMinimi = "";
+		 while (!in.atEnd()) {
+ 			s = in.readLine();
+			asterisk = s;
+			if (asterisk.indexOf("#") == 0 ){
+				infoPrezziMinimi += asterisk + "\n";
+				continue;
+			}
+			s = s.simplified();
+			
+ 			temp<<s.toDouble();
+// 			mPrezziEnergia[count] = s.toDouble();
+//   			qDebug()<<"ECO loadPrezzi"<<s<<count<<s.toDouble()<<mPrezziEnergia[count];
+  			count++;
+	
+		}
+	
+		if (count!=12)
+			return -1;
+		else
+			{
+			
+  			fileMinPrezzi = fileName;
+//   	qDebug()<<"ECO loadPrezzi inside"<<fileName<<count<<dPeriodo->value();
+  			minEnergyPrices.resize(0);
+  			minEnergyPrices = temp;
+			processMinEnergyPrices( );
+			return 1;
+			}
+	}
+	else
+		return -1;
+}
+void EcoVal::loadP()
+{
+	if (loadPrezzi(""))
+		{
+		updatePrezziView();
+		updatePrezziLabel(filePrezzi);
+		}
+}
+bool EcoVal::loadPrezzi(QString input)
+{
+	QString s,fileName,asterisk;
+	int count;
+	bool neg=false;
+	QVector<double> temp;
+	QStringList splitted;
+	if (input.isEmpty())
+		 fileName = QFileDialog::getOpenFileName(this, tr("File prezzi energia"), recentDirPrezzi, "Text files (*.scp)");
+	else
+		fileName = input;
+
+// 	qDebug()<<"ECO loadPrezzi "<<fileName;
+	QFile file(fileName);
+	if (!fileName.isEmpty() &&  file.open(QFile::ReadOnly)) {
+  		recentDirPrezzi = QFileInfo(fileName).absoluteDir().absolutePath();
+		QTextStream in(&file);
+		count =0;
+		infoPrezzi = "";
+		 while (!in.atEnd()) {
+		
+ 			s = in.readLine();
+			asterisk = s;
+			if (asterisk.indexOf("#") == 0 ){
+				infoPrezzi += asterisk + "\n";
+				continue;
+			}
+			s = s.simplified();
+			
+ 			temp<<s.toDouble();
+			if (s.toDouble()<0)
+				neg = true;
+// 			mPrezziEnergia[count] = s.toDouble();
+//   			qDebug()<<"ECO loadPrezzi"<<s<<count<<s.toDouble()<<mPrezziEnergia[count];
+  			count++;
+	
+		}
+		
+	
+		if (count!=12)
+			return -1;
+		else
+		{
+			
+  			filePrezzi = fileName;
+//   			qDebug()<<"ECO loadPrezzi inside"<<fileName<<count<<dPeriodo->value();
+			if (temp.contains(0) || neg) 
+			{
+				labelWarn->setText("<font color=\"red\"> " + tr("Un prezzo &egrave; negativo o nullo") + "</font>");
+				
+			}
+			else
+			{
+				labelWarn->setText("");
+			}
+  			mPrezziEnergia.resize(0);
+  			mPrezziEnergia = temp;
+			processEnergyPrices( );
+			return 1;
+			
+		}
+	}
+	else
+		return -1;
+}
+
+void EcoVal::loadTariffe()
+{
+	if (getTariffeFromFile(""))
+		updateRecent(fileTariffe);
+}
+bool EcoVal::getTariffeFromFile(QString input)
+{
+	QString s,fileName,asterisk;
+	int count;
+	QStringList splitted;
+	if (input.isEmpty())
+		fileName = QFileDialog::getOpenFileName(this, tr("File tariffe"), recentDir, "Text files (*.sct  )");	
+	else
+		fileName = input;
+	QFile file(fileName);
+	if (!fileName.isEmpty() &&  file.open(QFile::ReadOnly)) {
+		
+		QTextStream in(&file);
+		count =1;
+		infoTariffe="";
+		 while (!in.atEnd()) {
+			s = in.readLine();
+			asterisk = s;
+// 			qDebug()<<"ECO asterisk"<<asterisk.split("#");
+			if (asterisk.indexOf("#") == 0)
+			{
+					infoTariffe +=asterisk + "\n";
+// 					qDebug()<<"ECO info"<<infoTariffe;
+					continue;
+			}
+			if (count==1){
+				
+				
+				
+		 		s =s.simplified();
+		 		splitted = s.split(" ");
+				if ((splitted.at(0)!="-SolarCalc-") ){
+					QMessageBox::warning(this,tr("File non corretto"),tr("SolarCalc non riesce a leggere il contenuto del file. Controlla se il file risulta corrotto."),QMessageBox::Ok);
+					return -1;
+					}
+				
+					count+=1;
+			}
+			else
+			{
+				
+				s = s.simplified();
+				splitted = s.split(" ");
+				if (splitted.size()!=2){
+					QMessageBox::warning(this,tr("File non corretto"),tr("Il file sembra non contenere dati corretti"),QMessageBox::Ok);
+					return -1;
+				}
+				else
+				{
+					fileTariffe = fileName;
+                                        double v 	  = splitted.at(1).toDouble();
+					int index = splitted.at(0).toInt();
+//   					qDebug()<<"ECO loaded value"<<v<<index<<fileName;
+					switch (index){
+						case 1:
+							dTrasmissione->setValue(v);
+						break;
+						case 2:
+							dDistribuzioneWh->setValue(v);
+						break;
+						case 3:
+							dDistribuzioneW->setValue(v);
+						break;
+						case 4:
+							dDistribuzioneAnno->setValue(v);
+						break;
+						case 5:
+							dMisurakWh->setValue(v);
+						break;
+						case 6:
+							dMisuraAnno->setValue(v);
+						break;
+						case 7:
+							dAUC->setValue(v);
+						break;
+						case 8:
+							dPerditaTrasmissione->setValue(v);
+						break;
+						case 9:
+							dPerditaDistribuzione->setValue(v);
+						break;
+						case 10:
+							dCTRkWh->setValue(v);
+						break;
+						case 11:
+							dAltriCostickWh->setValue(v);
+						break;
+						case 12:
+							dAltriCostiMensili->setValue(v);
+						break;
+						
+							
+		
+					}	
+				}
+			}
+		}
+		
+	}
+	return 1;
+}
+void EcoVal::updateRecentBands( QString s )
+{
+	int i  = recentBands.indexOf(s);
+	if (i<0){
+		
+		QFileInfo file(s);
+		recentBandsFileName<<file.baseName();
+		recentBands<<s;
+		/* View only the file name*/
+		
+		model->setStringList(recentBandsFileName);
+		groupBands->setTitle(titleBandBox + " - "+ file.baseName());
+// 		qDebug()<<"ECO add band"<<model->stringList();
+	}
+}
+void EcoVal::updateRecent( QString s )
+{
+	int i  = recent.indexOf(s);
+QFileInfo f(s);
+	groupTariffe->setTitle(titleBox + " - " + f.baseName());
+	if (i<0){
+		recent<<s;
+		comboRecent->addItem(s);
+	}
+}
+void EcoVal::saveMinPrezziAs()
+{
+	QString fileName;
+	fileName = QFileDialog::getSaveFileName(this, tr("Salva prezzi minimi energia"), recentDirMinPrezzi, tr(" (*.scpm)"));
+	if (!fileName.isEmpty()){
+		fileName = MyMath::checkFormat(fileName,"scpm");
+		fileMinPrezzi = fileName;
+		
+		updateMinPrezziLabel(fileMinPrezzi);
+		saveMinPrezzi(fileMinPrezzi);
+	}
+}
+void EcoVal::saveMinPrezzi(QString fileName)
+{
+	
+	if (!fileName.isEmpty()  ) {
+		
+// 		fileName = MyMath::checkFormat(fileName,"scp");
+		fileMinPrezzi = fileName;
+		QFileInfo fileInfo(fileName);
+		recentDirMinPrezzi = fileInfo.absoluteDir().absolutePath();
+		QFile file(fileMinPrezzi);
+		if ( file.open(QFile::WriteOnly)){
+			 
+			QTextStream out(&file);
+			for(int i=0;i<12;i++)
+				out<<minEnergyPrices[i]<<"\n";
+		
+		}
+		else
+		{
+		QMessageBox::warning(this,tr("Non riesco a scrivere nella cartella"),tr("Errore di scrittura nella cartella selezionata"),QMessageBox::Ok);
+		}
+}
+}
+
+void EcoVal::savePrezziAs()
+{
+	QString fileName;
+	fileName = QFileDialog::getSaveFileName(this, tr("Salva prezzi energia"), recentDirPrezzi, tr(" (*.scp)"));
+	if (!fileName.isEmpty()){
+		fileName = MyMath::checkFormat(fileName,"scp");
+		filePrezzi = fileName;
+		
+		updatePrezziLabel(filePrezzi);
+		savePrezzi(filePrezzi);
+	}
+}
+void EcoVal::updatePrezziLabel(QString s)
+{
+	QFileInfo f(s);
+	groupPrezzi->setTitle(titleBox + " - " + f.baseName());
+	int i  = recentPrices.indexOf(s);
+	if (i<0){
+		
+		
+		recentPricesFileName<<f.baseName();
+		recentPrices<<s;
+		/* View only the file name*/
+		
+		modelInj->setStringList(recentPricesFileName);
+		
+//   		qDebug()<<"ECO add prezzi file"<<modelInj->stringList()<<s<<recentPrices<<s;
+	}
+	
+}
+void EcoVal::updateMinPrezziLabel(QString s)
+{
+	QFileInfo f(s);
+	groupMinPrices->setTitle(titleBox + " - " + f.baseName());
+	int i  = recentMinPrices.indexOf(s);
+	if (i<0){
+		
+		
+		recentMinPricesFileName<<f.baseName();
+		recentMinPrices<<s;
+		/* View only the file name*/
+		
+		modelSell->setStringList(recentMinPricesFileName);
+		
+//   		qDebug()<<"ECO add prezzi file"<<modelSell->stringList()<<s<<recentMinPrices<<s;
+	}
+	
+}
+void EcoVal::saveMinP()
+{
+	if (fileMinPrezzi.isEmpty())
+		saveMinPrezziAs();
+	else
+		saveMinPrezzi(filePrezzi);
+		
+}
+void EcoVal::saveP()
+{
+	if (filePrezzi.isEmpty())
+		savePrezziAs();
+	else
+		savePrezzi(filePrezzi);
+		
+}
+void EcoVal::savePrezzi(QString fileName)
+{
+	
+	if (!fileName.isEmpty()  ) {
+		
+// 		fileName = MyMath::checkFormat(fileName,"scp");
+		filePrezzi = fileName;
+		QFileInfo fileInfo(fileName);
+		recentDirPrezzi = fileInfo.absoluteDir().absolutePath();
+		QFile file(filePrezzi);
+		if (file.open(QFile::WriteOnly)){
+		
+			
+			QTextStream out(&file);
+			for(int i=0;i<12;i++){
+				out<<mPrezziEnergia[i]<<"\n";
+				qDebug()<<"ECO save Prezzi"<<mPrezziEnergia[i]<<fileName; 
+			}
+		
+		}
+		else
+		{
+			QMessageBox::warning(this,tr("Non riesco a scrivere nella cartella"),tr("Errore di scrittura nella cartella selezionata"),QMessageBox::Ok);
+		}
+}
+}
+void EcoVal::saveAs()
+{
+	QString fileName;
+	fileName = QFileDialog::getSaveFileName(this, tr("Salva tariffe"), recentSave, tr(" (*.sct)"));
+	if (!fileName.isEmpty()){
+		fileTariffe = fileName;
+		
+		updateRecent(fileName);
+		saveTariffe(fileTariffe);
+	}
+}
+void EcoVal::save()
+{
+	if (fileTariffe.isEmpty())
+		saveAs();
+	else
+		saveTariffe(fileTariffe);
+}
+ 
+void EcoVal::saveTariffe(QString fileName)
+{
+// 	QString fileName;
+// 	
+// 		fileName = QFileDialog::getSaveFileName(this, tr("Salva tariffe"), recentSave, tr(" (*.txt)"));
+		
+		
+// 	}
+	QStringList header;
+	fileName = MyMath::checkFormat(fileName,"sct");
+	QFile file(fileName);
+	if (!fileName.isEmpty() && file.open(QFile::WriteOnly) ) {
+		
+		
+		fileTariffe = fileName;
+		QFileInfo fileInfo(fileName);
+		recentDir = fileInfo.absoluteDir().absolutePath();
+		recentSave = fileInfo.absoluteDir().absolutePath();
+		QTextStream out(&file);
+		header = infoTariffe.split("<br>");
+ 		qDebug()<<"ECO salvo file"<<fileName<<file.fileName();
+		for(int i=0;i<header.size();i++) out<<"# "<<header.at(i)<<"\n";
+		out<<"-SolarCalc-"<<"\t"<<"Tariffe"<<"\n";
+		out<<"1"<<"\t"<<dTrasmissione->value()<<"\n";
+		out<<"2"<<"\t"<<dDistribuzioneWh->value()<<"\n";
+		out<<"3"<<"\t"<<dDistribuzioneW->value()<<"\n";
+		out<<"4"<<"\t"<<dDistribuzioneAnno->value()<<"\n";
+		out<<"5"<<"\t"<<dMisurakWh->value()<<"\n";
+		out<<"6"<<"\t"<<dMisuraAnno->value()<<"\n";
+		out<<"7"<<"\t"<<dAUC->value()<<"\n";
+		/*Value for producesr*/
+		out<<"8"<<"\t"<<dPerditaTrasmissione->value()<<"\n";
+		out<<"9"<<"\t"<<dPerditaDistribuzione->value()<<"\n";
+		out<<"10"<<"\t"<<dCTRkWh->value()<<"\n";
+		out<<"11"<<"\t"<<dAltriCostickWh->value()<<"\n";
+		out<<"12"<<"\t"<<dAltriCostiMensili->value()<<"\n";
+// 		qDebug()<<"ECO saved tariffe";
+		
+	}
+	else
+	{
+	QMessageBox::warning(this,tr("Non riesco a scrivere nella cartella"),tr("Errore di scrittura nella cartella selezionata"),QMessageBox::Ok);
+	}
+}
+void EcoVal::loadBandFromList(QModelIndex index)
+{
+	if (index.isValid()) {	
+		
+		QString name = recentBands.at(index.row());
+		loadBands(name);
+		updateRecentBands(fileBands);
+		groupBands->setTitle(titleBandBox + " - "+ recentBandsFileName.at(index.row()));
+// 		qDebug()<<"ECO loadBandFromList"<<index.row()<<fileBands;
+	
+	}
+}
+void EcoVal::loadPricesFromList(QModelIndex index)
+{
+	if (index.isValid()) {	
+  		qDebug()<<"ECO loadPricesFromList"<<index.row();
+		QString name = recentPrices.at(index.row());
+		loadPrezzi(name);
+		groupPrezzi->setTitle(titleBox + " - " + recentPricesFileName.at(index.row()));
+		updatePrezziView();
+	
+	}
+}
+void EcoVal::loadMinPricesFromList(QModelIndex index)
+{
+	if (index.isValid()) {	
+// 		qDebug()<<"ECO loadPricesFromList"<<index.row();
+		QString name = recentMinPrices.at(index.row());
+		loadMinPrezzi(name);
+		groupMinPrices->setTitle(titleBox + " - " + recentMinPricesFileName.at(index.row()));
+		updateMinPrezziView();
+	
+	}
+}
+void EcoVal::loadTariffeFromCombo(int index)
+{
+	getTariffeFromFile(comboRecent->itemText(index));
+}
+void EcoVal::processEnergyPrices()
+/* This function applies a predictive model to future prices of injected energy */
+/* Check the zeroicity of the input file */
+{
+	int maxYear = dPeriodo->value();
+	double a1 = da1->value();
+	double b1 = db1->value();
+	double om = dO->value();
+	double mu = dMu->value();
+        double variance[(maxYear+1)*12],increments[(maxYear+1)*12];
+	double rn,sqr;
+	mPrezziEnergiaSpan.resize(0);
+	
+	increments[0] = mPrezziEnergia.at(0);
+        for(int i=0;i<12;i++){
+            mPrezziEnergiaSpan << mPrezziEnergia.at(i) ; /*first year copy */
+	    if (i>0){
+	    	increments[i] = log(mPrezziEnergia.at(i)) - log(mPrezziEnergia.at(i-1)); /* FOR GARCH MODEL */
+		variance[i]=0;
+		}
+	    
+// 	    qDebug()<<"ECO processEnergyPrices first copy"<<mPrezziEnergiaSpan.at(i)<<i<<increments[i]<<maxYear;
+	  
+	}
+	variance[11] = MyMath::var(mPrezziEnergia);
+// 	 qDebug()<<"ECO processEnergyPrices FIRST VARAINCE"<<variance[11];
+	
+//         if (comboRegime->currentIndex()==Vendita){
+//             minEnergyPrices.resize(0);
+//             minEnergyPrices[0] = dMinEnergyPrice->value();
+// 
+//         }
+// //         int k = 0;
+	/* TO CHECK THE FOLLOWING FORMULA */
+	double D   = (1+dDiscountRate->value()/100)/(dEnergyInflationRate2->value()/100+1)-1;
+	D = - (dEnergyInflationRate2->value()/100 / (dEnergyInflationRate2->value()/100 + 1) );/*En inflates regardless of discount? */
+	double pwf = 0;
+  	for(int i=1;i<=maxYear;i++){
+ 
+	      pwf = 1/pow((1+D),i);
+              for(int j=0;j<12;j++){
+		if (radioGARCH->isChecked()){
+			
+			variance[i*12+j]    =  om  + a1*pow(increments[i-1],2) + b1*variance[i*12 + j-1];
+			
+			sqr = sqrt(variance[i*12+j]);
+			rn = MyMath::randn()*sqr;
+			increments[i*12+j]  = mu    -0.2*increments[i*12+j-1] +rn*sqr;
+
+ 			mPrezziEnergiaSpan << mPrezziEnergiaSpan.at((i-1)*12 + j) * exp(increments[i*12+j]);
+//                        qDebug()<<"ECO processEnergyPrices "<<increments[i*12+j-1]<<increments[i*12+j]<<maxYear<<mu<<om<<rn<<variance[i*12+j]<<variance[i*12 + j-1]<<sqr<<i<<j<<mu<<mPrezziEnergiaSpan.at((i-1)*12 + j)<<mPrezziEnergiaSpan.at((i)*12 + j);
+		}
+		else
+		{
+				
+				mPrezziEnergiaSpan << mPrezziEnergiaSpan.at(    j) * pwf ;
+				#ifdef DEBUG
+ 				qDebug()<<"ECO processEnergyPrices SIMPLAE INFLATION"<<mPrezziEnergiaSpan.at(i*12+j)<<pwf;
+				#endif
+		}
+                 }
+  	}
+updatePrezziPlot();
+// free(e);
+}
+void EcoVal::processMinEnergyPrices()
+/* This function applies a predictive model to future prices of injected energy */
+{
+	int maxYear = dPeriodo->value();
+	double a1 = dminPricesA1->value();
+	double b1 = dminPricesB1->value();
+	double om = dminPricesO1->value();
+	double mu = dminPricesMu->value();
+        double variance[(maxYear+1)*12],increments[(maxYear+1)*12];
+	
+	
+	increments[0] = mPrezziEnergia.at(0);
+	minEnergyPrices.remove(12,minEnergyPrices.size()-12);
+        for(int i=0;i<12;i++){
+        
+	    if (i>0){
+	    	increments[i] = log(minEnergyPrices.at(i)) - log(minEnergyPrices.at(i-1)); /* FOR GARCH MODEL */
+		variance[i]=0;
+		}
+	    variance[11] = MyMath::var(minEnergyPrices);
+//   	    qDebug()<<"ECO processMinEnergyPrices first copy"<<minEnergyPrices.at(i)<<maxYear;
+	  
+	}
+
+	
+	
+
+	double D   = (1+dDiscountRate->value()/100)/(dEnergyInflationRateSell->value()/100+1)-1;
+	D = - (dEnergyInflationRateSell->value()/100 / (dEnergyInflationRateSell->value()/100 + 1) );/*En inflates regardless of discount? */
+	double pwf = 0;
+  	for(int i=1;i<=maxYear;i++){
+
+	      pwf = 1/pow((1+D),i);
+              for(int j=0;j<12;j++){
+		if (radioGARCH_2->isChecked()){
+			variance[i*12+j]    =  om  + a1*pow(increments[i-1],2) + b1*variance[i*12 + j-1];
+			increments[i*12+j]  = mu   + -0.2*increments[i*12+j-1]  + MyMath::randn()*sqrt(variance[i*12+j]);
+			
+			
+
+ 			minEnergyPrices << minEnergyPrices.at((i-1)*12 + j) * exp(increments[i*12+j]);
+//                          qDebug()<<"ECO processEnergyPrices minimum"<<minEnergyPrices.at(i*12+j)<<maxYear<<i<<j;
+		}
+		else
+		{
+				
+				minEnergyPrices << minEnergyPrices.at(    j) * pwf ;
+// 				qDebug()<<"ECO processEnergyPrices minimum SIMPLAE INFLATION"<<minEnergyPrices.at(i*12+j)<<pwf;
+		}
+                 }
+  	}
+updateMinPrezziPlot();
+// free(e);
+}
+void EcoVal::reProcessEnergyPrices(bool i)
+{
+	if (i==true)
+	{
+		da1->setEnabled(true);
+		db1->setEnabled(true);
+		dMu->setEnabled(true);
+		dO->setEnabled(true);
+		dMu->setEnabled(true);
+
+		dEnergyInflationRate2->setEnabled(false);
+		processEnergyPrices();
+	}
+	else
+	{
+		da1->setEnabled(false);
+		db1->setEnabled(false);
+		dMu->setEnabled(false);
+		dO->setEnabled(false);
+		dMu->setEnabled(false);
+	
+		dEnergyInflationRate2->setEnabled(true);
+	}
+	
+}
+void EcoVal::reProcessMinEnergyPrices(bool i)
+{
+	if (i==true)
+	{
+		dminPricesA1->setEnabled(true);
+		dminPricesB1->setEnabled(true);
+		dminPricesMu->setEnabled(true);
+		dminPricesO1->setEnabled(true);
+		
+
+		dEnergyInflationRateSell->setEnabled(false);
+		processMinEnergyPrices();
+	}
+	else
+	{
+		dminPricesA1->setEnabled(false);
+		dminPricesB1->setEnabled(false);
+		dminPricesMu->setEnabled(false);
+		dminPricesO1->setEnabled(false);
+		
+	
+		dEnergyInflationRateSell->setEnabled(true);
+	}
+	
+}
+
+void EcoVal::toggleCoeff(int i)
+{
+	if (i==Vendita)
+	{
+		groupMinPrices->setEnabled(true);
+	}
+	else{
+	
+		
+		groupMinPrices->setEnabled(false);
+	}
+}
+int EcoVal::getRegime()
+{
+	return comboRegime->currentIndex();
+}
+double EcoVal::getYearlyAssic()
+{
+	assicurazione = installedPower*dAssicurazione->value();
+	return assicurazione;
+	
+}
+
+double EcoVal::getYearlyAssicNPV(int year)
+{
+	double rw = (1+dDiscountRate->value()/100) / (1 + dTassoInflazione->value()/100) -1;
+	if (year<= dAssicurazioneAnni->value())
+		return assicurazione/(pow(1+rw,year));
+	else
+		return 0;
+}
+double EcoVal::getYearlyCost()
+/* Return the total cost (maintenance, taxes, and so on) */
+{
+	return dManutenzioneAnno->value()  + dAffitti->value() + dAltro->value() ;
+}
+// void EcoVal::drawCS(const QPolygonF &data)
+// {
+// //     rawPlot->setData(x,y,size);
+//       csPlot->setData(data);
+//       qwtPlot->replot();
+// }
+// void EcoVal::drawNPV(const QPolygonF &npv)
+// {
+// 	QwtArray<QwtDoubleInterval> intervals(npv.size());
+// 	QwtArray<double> values(npv.size());
+// 	double pos=0;
+// 	for(int i=0;i<(int)npv.size();i++)
+// 	{
+// 		intervals[i] = QwtDoubleInterval(pos, pos + 1);
+// 		pos += 1;
+// 		values[i] = npv.at(i).y();
+// 	}
+// 	vanPlot->setData(QwtIntervalData(intervals, values));
+// 
+// 
+// //     rawPlot->setData(x,y,size);
+// //       vanPlot->setData(npv);
+//       qwtVan->replot();
+// }
+// void EcoVal::drawFlowCash(const QPolygonF &data)
+// {
+// 	QwtArray<QwtDoubleInterval> intervals(data.size());
+// 	QwtArray<double> values(data.size());
+// 	double pos=0;
+// 	for(int i=0;i<(int)data.size();i++)
+// 	{
+// 		intervals[i] = QwtDoubleInterval(pos, pos + 1);
+// 		pos += 1;
+// 		values[i] = data.at(i).y();
+// 	}
+// 	rawPlot->setData(QwtIntervalData(intervals, values));
+// //  	rawPlot->setData(data);
+//  	qwtPlot->replot();
+// }
+double EcoVal::getNPVFactor(double C,int year)
+/* Return a single factor of the NPV summation. C is the cash flow*/
+{
+	
+// 	double rw = (1+dDiscountRate->value()/100) / (1 + dEnergyInflationRate->value()/100) -1;
+	double rw = (1+dDiscountRate->value()/100) / (1 + dTassoInflazione->value()/100) -1;
+	double den = pow((1+rw),year);
+	if (year<=0) 
+		return 1;
+	else
+		return C/den;
+}
+double EcoVal::getInitialCost()
+{
+	return dCostoIniziale->value();
+}
+double EcoVal::getYearlyLoan( int year)
+{
+	if (year<=dFinAnni->value())
+	return loan;
+	else
+	return 0;
+}
+double EcoVal::getYearlyLoanNPV(int year)
+{
+	if (year<=dFinAnni->value())
+	return loan* (1/pow((dDiscountRate->value()/100+1),year));
+	else
+	return 0;
+}
+void EcoVal::computeLoan()
+{
+	int    nfin    = dFinAnni->value();
+	double fin     = dFinanziamento->value();
+	int    life    = dPeriodo->value();
+	double rate    = dLoanInterestRate->value()/100;
+	if (nfin>0 && fin>0)
+	loan =  fin/MyMath::pwf(rate,nfin);
+	else
+	loan = 0;
+	
+}
+double ::EcoVal::getYearlyInterestNPV(int year)
+{
+	double D = (1+dDiscountRate->value()/100)/(1+dLoanInterestRate->value()/100) - 1;
+	return  getYearlyInterest(year)*1/(pow(1+D,year));
+}
+double EcoVal::getYearlyInterest(int year)
+{
+	int    nfin    = dFinAnni->value();
+	double fin     = dFinanziamento->value();
+	double rate    = dLoanInterestRate->value()/100;
+	int    life    = dPeriodo->value();
+		if (nfin>0 && fin>0 && year>0 && year<=nfin)
+		 return fin*rate *(pow((1+rate),life) - pow(1+rate,year-1))/(pow(1+rate,life)-1);
+
+		else
+		return 0;
+}
+double EcoVal::getTaxReduction()
+{
+	return (dTaxReductionInitialCost->value()/100)*dCostoIniziale->value();
+}
+double EcoVal::getDepreciation()
+{
+	ammPeriodo = dAmmortamento->value() > 0.000000002 ? floor(100/dAmmortamento->value()) : 0;
+	int e = MyMath::min(dPeriodo->value(),ammPeriodo);
+	if (e!=0)
+	return dAmmortamento->value() * dCostoIniziale->value()/e;
+	else
+	return 0;
+}
+double EcoVal::getDepreciationNPV(int year)
+{
+	ammPeriodo = dAmmortamento->value() > 0.000000002 ? floor(100/dAmmortamento->value()) : 0;
+	int e = MyMath::min(dPeriodo->value(),ammPeriodo);
+	if (year<=e)
+	return (dAmmortamento->value()/100) * dCostoIniziale->value()/dPeriodo->value()*1/pow(1+dDiscountRate->value()/100,year);
+	else
+	return 0;
+}
+ double EcoVal::getYearlyTaxReductionOnInterest(int year)
+{
+	
+	return (dTaxReductionInterest->value() *getYearlyInterest(year));
+}
+
+double EcoVal::getYearlyTaxReductionOnInterestNPV(int year)
+{
+	double t = pow((1+dLoanInterestRate->value()/100 ),dFinAnni->value());
+	double d = dDiscountRate->value()/100;
+	int    life = dPeriodo->value();
+	double m    = dLoanInterestRate->value()/100;
+	double Ds   = (1+d)/(1+m) -1;
+	double factor = (t * 1/pow(1+d,year) - ((1/pow(1+Ds,year)) * 1/(1+m)))/( t -1);
+	if ((int)t==1)
+	return 0;
+	else
+	return (dTaxReductionInterest->value() * m * dFinanziamento->value() *factor);
+}
+
+// void EcoVal::createActions()
+// {
+// 	a_print       =  new QAction(tr("&Stampa"),this);
+// 	a_print->setShortcut(tr("Ctrl+P"));
+// 	a_export      = new QAction(tr("&SVG"),this);
+// 
+// 	a_export->setShortcut(tr("Ctrl+S+V"));
+// 
+// // 	a_proprieta   = new QAction(tr("Impostazioni"),this);
+// 
+// // 	a_create_grid = new QAction(tr("Griglia"),this);
+// 
+// 	a_exportPNG   = new QAction(tr("PNG"),this);
+// 	
+// 	a_exportPDF = new QAction(tr("PDF"),this);
+// 	a_exportPDF->setIcon(QIcon(":/images/pdf.jpeg"));
+// 
+// 
+// 	connect(a_print,SIGNAL(triggered()),this,SLOT(printOut()));
+// 	connect(a_export,SIGNAL(triggered()),this,SLOT(exportSVG()));
+// 	 
+// // 	connect(a_create_grid,SIGNAL(triggered()),this,SLOT(gridset()));
+// 	connect(a_exportPNG,SIGNAL(triggered()),this,SLOT(exportPNG()));
+// 	connect(a_exportPDF,SIGNAL(triggered()),this,SLOT(exportPDF()));
+// 	 
+// }
+// void EcoVal::exportSVG()
+// {
+// }
+//  
+//  void EcoVal::printOut()
+// {
+// 	 QPrinter printer(QPrinter::HighResolution);
+// 	#ifdef Q_WS_X11
+// 	 printer.setOutputFileName(tr("diagrammasolare.pdf"));
+// 	#endif
+// 	 printer.setCreator("Solar Calc");
+//          printer.setOrientation(QPrinter::Landscape);
+// 	 
+// 	 QPrintDialog dialog(&printer);
+//    	 if ( dialog.exec() )
+//     	{	
+// 		QwtPlotPrintFilter filter;
+// 	//          if ( printer.colorMode() == QPrinter::GrayScale )
+//         
+//             int options = QwtPlotPrintFilter::PrintAll;
+//             options &= ~QwtPlotPrintFilter::PrintBackground;
+//             options |= QwtPlotPrintFilter::PrintFrameWithScales;
+//             filter.setOptions(options);
+//         
+// 	if (cursorPos.y()<=qwtVan->geometry().y()+qwtVan->geometry().height())
+//         	qwtVan->print(printer,filter );
+// 	if (cursorPos.y()>qwtVan->geometry().y()+qwtVan->geometry().height())
+// 		qwtPlot->print(printer,filter );
+// 	
+// 	}
+// }
+// void EcoVal::exportPDF()
+// {
+// 	 QString fileName;
+// 	 fileName = QFileDialog::getSaveFileName(this, tr("Nome file da esportare"),   recentExportPath,"Acrobat ( *pdf)");
+// 	QFileInfo fileInfo(fileName);
+//         recentExportPath = fileInfo.absoluteDir().absolutePath();
+// 	if ( !fileName.isEmpty() ) {
+// 	   fileName = MyMath::checkFormat(fileName,"pdf");
+// 	 QPrinter printer(QPrinter::HighResolution);
+// 	 printer.setOutputFormat(QPrinter::PdfFormat);
+// 	 printer.setOutputFileName(fileName);
+// 	 printer.setCreator("Solar Calc");
+//          printer.setOrientation(QPrinter::Landscape);
+// 	 
+// 	 
+//      
+//        
+// 	    QwtPlotPrintFilter filter;
+// //          if ( printer.colorMode() == QPrinter::GrayScale )
+//          
+//             int options = QwtPlotPrintFilter::PrintAll;
+//             options &= ~QwtPlotPrintFilter::PrintBackground;
+//             options |= QwtPlotPrintFilter::PrintFrameWithScales;
+//             filter.setOptions(options);
+//         
+// 
+// // 	qwtVan->print(printer,filter);
+// // 	printer.newPage();
+// // 	qwtPlot->print(printer,filter);
+// 
+// QPainter painter;
+// painter.begin(&printer);
+// qwtVan->print(&painter,printer.pageRect(),filter);
+// printer.newPage();
+// qwtPlot->print(&painter,printer.pageRect(),filter);
+// painter.end();
+// 
+//       }
+// }	
+// void EcoVal::popUpMenu(const QPoint &pos)
+// { 
+// 	 
+//  	QMenu menu;
+// 	QMenu exMenu(tr("&Esporta"),&menu);
+// 	
+// 	
+// 	exMenu.addAction(a_export);
+// 	exMenu.addAction(a_exportPNG);
+// 	exMenu.addAction(a_exportPDF);
+// 	
+// 		
+// // 	menu.addAction(a_undo_combine);
+// 	menu.addAction(a_print);
+// 	menu.addMenu(&exMenu);
+// 		
+// 	
+// // 	menu.addAction(a_create_grid);
+// 	cursorPos = this->mapFromGlobal(QCursor::pos());
+// 	#ifdef Q_WS_X11
+// 	menu.popup(pos);	
+// 	#endif
+// 	menu.exec(QCursor::pos());
+// 	qDebug()<<"qwtPlot Poistion ="<<qwtVan->geometry().y()<<qwtVan->geometry().y()+qwtVan->geometry().height()
+// 				      <<qwtPlot->geometry().y()<<qwtPlot->geometry().height()+qwtPlot->geometry().y()
+// 				      <<QCursor::pos()<<this->mapFromGlobal(QCursor::pos());
+// }
+// void EcoVal::exportPNG()
+// {	QString fileName;
+//  
+//         fileName = QFileDialog::getSaveFileName(this, tr("Nome file da esportare"),  recentExportPath,"Graphic files (*.png  )");
+// 	QFileInfo fileInfo(fileName);
+//         recentExportPath = fileInfo.absoluteDir().absolutePath();
+// 
+//     if ( !fileName.isEmpty() )
+//     {
+// 	 fileName = MyMath::checkFormat(fileName,"png");
+// 	QwtPlotPrintFilter filter;
+//     	int options = QwtPlotPrintFilter::PrintAll;
+//                options  = ~QwtPlotPrintFilter::PrintBackground;
+//                options |= QwtPlotPrintFilter::PrintFrameWithScales;
+//  	 
+// 	filter.setOptions(options);
+// 	//QImage pixmap(800,600,QImage::Format_RGB32);
+// // 	QPixmap pixmap= QPixmap::grabWidget(p);
+// 	QPixmap pixmap(1024,800);
+// 	pixmap.fill(Qt::white);
+//       	
+// 	if (cursorPos.y()<=qwtVan->geometry().y()+qwtVan->geometry().height())
+//         	qwtVan->print(pixmap,filter );
+// 	if (cursorPos.y()>qwtVan->geometry().y()+qwtVan->geometry().height())
+// 		qwtPlot->print(pixmap,filter );
+// 
+// 	 if ( pixmap.save(fileName, "png" ))
+// 		qDebug()<<"Ok";
+//   	 else
+// 		qDebug()<<"Error";
+// 	 
+//     
+// }
+// }
+ecopara EcoVal::getEcoParameters()
+{
+	ecopara o;
+	o.bonusPerkWp	    = dIncentiviPerkWp->value();
+	o.assicurazione     = dAssicurazione->value();
+	o.assicurazioneAnni = dAssicurazioneAnni->value();
+	o.ammortamento      = dAmmortamento->value();
+	o.ammortamentoAnni  = ammPeriodo;
+	o.regime            = comboRegime->currentIndex();
+	o.fileBands         = fileBands;
+  	o.bonuses	    = dIncentivi->value();
+//   	qDebug()<<"ECO b"<<o.bonuses;
+	
+	for(int i=0;i<12;i++){
+// 		qDebug()<<"ECO getEco"<<o.bands;
+		o.bands.append(bands[i]);
+	}
+	o.fileTariffe       = fileTariffe;
+
+	o.tariffe[0]= dTrasmissione->value();
+	o.tariffe[1]=dDistribuzioneWh->value();
+	o.tariffe[2]=dDistribuzioneW->value();
+	o.tariffe[3]=dDistribuzioneAnno->value();
+	o.tariffe[4]=dMisurakWh->value();
+	o.tariffe[5]=dMisuraAnno->value();
+	o.tariffe[6]=dAUC->value();
+	o.tariffe[7]=dPerditaTrasmissione->value();
+	o.tariffe[8]=dPerditaDistribuzione->value();
+	o.tariffe[9]=dCTRkWh->value();
+	o.tariffe[10]=dAltriCostickWh->value();
+	o.tariffe[11]=dAltriCostiMensili->value();
+
+	for(int i=0;i<12;i++)
+	{
+// 		qDebug()<<"ECO get mPrezzi"<<mPrezziEnergia.at(i)<<minEnergyPrices.at(i);
+		o.prezziEnergia[i]    = mPrezziEnergia.at(i);
+		o.prezziMinEnergia[i] = minEnergyPrices.at(i);
+	}
+	
+	o.filePrezziEnergia = filePrezzi;
+	o.filePrezziMinimi  = fileMinPrezzi;
+	o.prezziEnergiaModel= radioSimpleInflation->isChecked();
+	o.prezziEnergiaInflazione = dEnergyInflationRate2->value();
+	o.prezziMinEnergiaInflazione = dEnergyInflationRateSell->value();
+	o.prezziEnergiaGARCH<< da1->value() << db1->value() << dO->value() << dMu->value();
+	o.prezziMinEnergiaModel = radioSimpleInflation_2->isChecked();
+	o.minPrezziEnergiaGARCH<< dminPricesA1->value() << dminPricesB1->value() << dminPricesO1->value() << dminPricesMu->value();
+	o.maintenanceCost       = dManutenzioneAnno->value();
+	o.maintenanceS		= dManutenzioneS->value();
+	o.maintenanceSFreq	= dManutenzioneSFreq->value();
+// 	o.taxesCost		= dTasse->value();
+	o.taxesCost		= 0;
+	o.otherCost		= dAltro->value();
+	o.benefitInitialCost	= dTaxReductionInitialCost->value();
+	o.benefitTotalInterest  = dTaxReductionInterest->value(); 
+	o.benefitVATCost	= dTaxReductionVAT->value();
+	o.initialCost		= dCostoIniziale->value();
+	o.loan			= dFinanziamento->value();
+	o.loanYears		= dFinAnni->value();
+	o.loanInterestRate	= dLoanInterestRate->value();
+	o.inflRate		= dTassoInflazione->value();
+// 	o.inflEnergyRate	= dEnergyInflationRate2->value();
+	o.discountRate		= dDiscountRate->value();
+	o.life			= dPeriodo->value();
+	return o;
+}
+void EcoVal::setEcoParameters(const ecopara o)
+{
+		dIncentiviPerkWp->setValue(o.bonusPerkWp);
+		dAssicurazione->setValue(o.assicurazione);
+		dAssicurazioneAnni->setValue(o.assicurazioneAnni);
+		dAmmortamento->setValue(o.ammortamento);
+		ammPeriodo = (o.ammortamentoAnni);
+		bands.clear();
+		
+		comboRegime->setCurrentIndex(o.regime);
+		fileBands=o.fileBands ;
+		dIncentivi->setValue(o.bonuses);
+// 	qDebug()<<"ECO VAL ecopara"<<o.bands;
+	if (!o.bands.isEmpty()){
+		for(int i=0;i<12;i++)
+			 bands.append(o.bands[i]);
+	}
+	else
+			bands = bandsDefault;
+		fileTariffe=o.fileTariffe;
+	 
+		dTrasmissione->setValue(o.tariffe[0]);
+		dDistribuzioneWh->setValue(o.tariffe[1]);
+		dDistribuzioneW->setValue(o.tariffe[2]);
+		dDistribuzioneAnno->setValue(o.tariffe[3]);
+		dMisurakWh->setValue( o.tariffe[4]);
+		dMisuraAnno->setValue( o.tariffe[5]);
+		dAUC->setValue(o.tariffe[6]);
+		dPerditaTrasmissione->setValue( o.tariffe[7]);
+		dPerditaDistribuzione->setValue(o.tariffe[8]);
+		dCTRkWh->setValue(o.tariffe[9]);
+		dAltriCostickWh->setValue(o.tariffe[10]);
+		dAltriCostiMensili->setValue(o.tariffe[11]);
+		
+	      for(int i=0;i<12;i++)
+	{
+		mPrezziEnergia[i] = o.prezziEnergia[i] ;
+		minEnergyPrices[i]     = o.prezziMinEnergia[i];
+	}	
+	      filePrezzi=o.filePrezziEnergia;
+	      fileMinPrezzi=o.filePrezziMinimi;
+	      radioSimpleInflation->setChecked(o.prezziEnergiaModel);
+	dEnergyInflationRate2->setValue(o.prezziEnergiaInflazione);
+	dEnergyInflationRateSell->setValue(o.prezziMinEnergiaInflazione);
+	da1->setValue(o.prezziEnergiaGARCH.at(0));
+	db1->setValue(o.prezziEnergiaGARCH.at(1));
+	dO->setValue(o.prezziEnergiaGARCH.at(2));
+	dMu->setValue(o.prezziEnergiaGARCH.at(3));
+	radioSimpleInflation_2->setChecked(o.prezziMinEnergiaModel);
+	dminPricesA1->setValue(o.minPrezziEnergiaGARCH.at(0));
+	dminPricesB1->setValue(o.minPrezziEnergiaGARCH.at(1));
+	dminPricesO1->setValue(o.minPrezziEnergiaGARCH.at(2));
+	dminPricesMu->setValue(o.minPrezziEnergiaGARCH.at(3));
+	dManutenzioneAnno->setValue(o.maintenanceCost);
+	dManutenzioneS->setValue(o.maintenanceS);
+	dManutenzioneSFreq->setValue(o.maintenanceSFreq);
+// 	dTasse->setValue(o.taxesCost);
+	dAltro->setValue(o.otherCost);
+	dTaxReductionInitialCost->setValue(o.benefitInitialCost)	;
+	dTaxReductionInterest->setValue(o.benefitTotalInterest); 
+	dTaxReductionVAT->setValue(o.benefitVATCost);
+	dCostoIniziale->setValue(o.initialCost);
+	dFinanziamento->setValue(o.loan);
+	dFinAnni->setValue(o.loanYears);
+	dLoanInterestRate->setValue(o.loanInterestRate);
+	dTassoInflazione->setValue(o.inflRate);
+// 	dEnergyInflationRate->setValue(o.inflEnergyRate);
+	dDiscountRate->setValue(o.discountRate);
+	dPeriodo->setValue(o.life);
+	
+// 	if (!filePrezzi.isEmpty()){
+// 		loadPrezzi(filePrezzi);
+		updatePrezziView();
+		updatePrezziLabel(filePrezzi);
+// 	}
+	
+// 	if (!fileMinPrezzi.isEmpty()){
+// 		loadMinPrezzi(fileMinPrezzi);
+		updateMinPrezziView();
+		updateMinPrezziLabel(fileMinPrezzi);
+// 	}
+// 	if (!fileBands.isEmpty()){
+//                 loadBands(fileBands);
+		updateRecentBands(fileBands);
+		updateView(0);
+// 	}
+ 	if (!fileTariffe.isEmpty()){
+// 		getTariffeFromFile(fileTariffe);
+ 		updateRecent(fileTariffe);//aggiorna il nome del file
+ 	}
+}
+void EcoVal::setProjectFolder(const QString &f)
+{
+	projectFolder = f;
+}
+// QwtPlot* EcoVal::vanDiagram()
+// {
+// 	return qwtVan;
+// }
+// QwtPlot* EcoVal::rawDiagram()
+// {
+// 	return qwtPlot;
+// }
+
+double EcoVal::getTaxVatReduction()
+{
+	return (dVAT->value()/100)*dCostoIniziale->value() *dTaxReductionVAT->value()/100;
+}
+double EcoVal::getFreqCosts(int i)
+{
+	if (dManutenzioneSFreq->value() == 0)
+		return 0;
+
+	if (i % dManutenzioneSFreq->value() == 0)
+		return dManutenzioneS->value();
+	else
+	 return 0;
+}
+
+
+void EcoVal::updateTableBandsView(int status,int x)
+{
+// 	qDebug()<<"ECO "<<status<<x;
+	for(int i=0;i<12;i++)
+	{
+		for (int j=0;j<24;j++)
+		{
+			/*From*/
+			if (status==error)
+			{
+				tableBandsView->item(x,j)->setBackground(QBrush(QColor("red")));
+			}
+			else
+			{
+				if ( (bands[i].at(0).toInt()<=j) && (bands[i].at(1).toInt()>=j))
+				{
+		
+					if (bands[i].at(2)!="0")
+					tableBandsView->item(i,j)->setText((bands[i].at(2)));
+					else
+					tableBandsView->item(i,j)->setText(("-"));
+					tableBandsView->item(i,j)->setBackground(QBrush());
+				}		
+				else
+				{
+					tableBandsView->item(i,j)->setText("-");
+					tableBandsView->item(i,j)->setBackground(QBrush());
+				}
+			}
+		}	
+	}
+	tableBandsView->resizeColumnsToContents();
+}
+void EcoVal::updateTableBandsView()
+{
+// 	qDebug()<<"ECO()---";
+	for(int i=0;i<12;i++)
+	{
+		for (int j=0;j<24;j++)
+		{
+		/*From*/
+		 if ( (bands[i].at(0).toInt()<=j) && (bands[i].at(1).toInt()>=j)){
+			
+				tableBandsView->item(i,j)->setText((bands[i].at(2)));
+				
+// 				qDebug()<<"ECO()"<<i<<bands[i].at(2);;
+				}
+			
+		}
+	}
+}
+ 
+void EcoVal::changeSelectedBand(const QModelIndex& index)
+{
+	qDebug()<<"ECO row clicked"<<index.row();
+	comboBands->setCurrentIndex(index.row());
+}
+ 
+void EcoVal::setInstalledPower(double a)
+{
+	installedPower = a;
+}
+void EcoVal::updateInfo()
+{
+	InfoDialog s;
+	s.setString(infoTariffe);
+		if (s.exec()){
+			infoTariffe = s.getString();
+			qDebug()<<infoTariffe;
+		}
+
+	
+}
+void EcoVal::updateInfoBands()
+{
+	InfoDialog s;
+	s.setString(infoBands);
+		if (s.exec()){
+			infoBands = s.getString();
+			
+		}
+
+	
+}
+void EcoVal::updateInfoPrezzi()
+{
+	InfoDialog s;
+	s.setString(infoPrezzi);
+		if (s.exec()){
+			infoPrezzi = s.getString();
+			
+		}
+
+	
+}
+void EcoVal::updateInfoPrezziMinimi()
+{
+	InfoDialog s;
+	s.setString(infoPrezziMinimi);
+		if (s.exec()){
+			infoPrezziMinimi = s.getString();
+			
+		}
+
+	
+}
+double EcoVal::getBonusPerkWp()
+{
+	return dIncentiviPerkWp->value();
+}
