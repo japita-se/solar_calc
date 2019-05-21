@@ -1,2 +1,2 @@
-# solar_calc
+# Solar Calc
 World Solar Radiation Estimation
