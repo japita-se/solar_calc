@@ -1,0 +1,135 @@
+#include "support.h"
+#include "map.h"
+#include <QWebView>
+
+void Support::showWarn(bool a)
+{
+	if (a)
+		warn->setVisible(true);
+	else
+		warn->setVisible(false);
+}
+void Support::showWarn(bool a,const QString &b)
+{
+	if (a){
+		warn->setVisible(true);
+		warn->setText(b);
+		}
+	else
+		warn->setVisible(false);
+}
+Support::Support(QWidget* parent): QWidget(parent)
+{
+ 
+	locName ="";
+	map = new Map(this);
+  	QPushButton *ok = new QPushButton(tr("Applica"),this);
+	ok->setToolTip(tr("<p>Dopo aver scelto un punto sulla mappa con il mouse, clicca per applicare il nuovo sito al sistema attuale</p>"));
+	warn = new QLabel( tr("<font color=\"red\">Servizio di mappatura non disponibile. Controlla la connessione</font>"),this); 
+	warn->setWordWrap(true);
+	warn->setVisible(false);
+	warn->setGeometry( QRect(this->geometry().width()/2,this->geometry().height()/2,100,100));
+//   	QVBoxLayout *v = new QVBoxLayout;
+//   	v->addWidget(map);
+//   	v->addWidget(ok);
+// 	
+//   	setLayout(v);
+// 	resize(QSize(100,100));
+	ok->setGeometry( 190,25, 97, 25);
+// 	qDebug()<<"SUPPORT height widget"<<this->frameGeometry().height()<<map->frameGeometry().height();
+	 #ifdef Q_WS_X11
+  	 map->setUrl(QUrl("file:///://"));
+	 #endif
+	 map->load(QUrl("./index.html") ) ;
+	 connect(map,SIGNAL(reloadMap()),SLOT(setCoordinates()));
+	connect(ok,SIGNAL(clicked()),map,SLOT(examinePage()));
+	connect(map,SIGNAL(coordinatesReady(double,double,QString&)),SLOT(updatePoint(double,double,QString&)));
+  	 wait = true;
+	mode = textCity;
+	lat =-999;
+	lon =-999;//invalid coordinate;
+  	co = QPointF(lat,lon);
+	
+}
+void Support::setCoordinates()
+{
+	if (!map->getCoordinates().isNull())
+		co = map->getCoordinates();
+	else
+		if (mode==numeric)
+			co = QPointF(lat,lon);
+		else
+			co = QPointF();
+
+	wait = false;
+	locName = map->getName();
+	qDebug()<<"SUPPORT COORINDATES VALID"<<co<<locName;
+	emit coordinatesValid();
+   
+}
+void Support::setCity(QString name)
+{
+	mode = textCity;
+	wait = true;
+	city = name;
+	map->clearCoordinates();
+	map->geoCode(name,mode );
+    	qDebug()<<"SUPPORT geoCode name"<<name;
+	
+	
+	
+}
+QString Support::googleName()
+{
+	return locName;
+}
+void Support::setCo(double  l, double  lo)
+{
+	wait = true;
+	mode = numeric;
+	map->clearCoordinates();
+	map->geoCode(QString::number(l) + "," + QString::number(lo),mode );
+//   	qDebug()<<"SUPPORT geoCode coord"<<l<<lo;
+	lat = l; 
+	lon = lo;
+	
+	map->loadCoordinates(l,lo);
+	
+}
+QSize  Support::minimumSizeHint() const
+ {
+     return QSize(200, 500);
+ }
+void  Support::paintEvent(QPaintEvent* /*event*/)
+{
+	QPainter painter(this);
+	painter.setRenderHint(QPainter::Antialiasing,true);
+// 	int side = qMin(width(),height());
+// 	
+// 	int x = (width() - side / 2);
+//  	int y = (height() - side / 2);
+// 	painter.setViewport(x, y, side, side);
+	 
+  
+//          qDebug()<<"Support";
+// 	painter.setWindow(-50,-50,50,50);
+	
+}
+QString Support::cityLocal()
+{
+	return city;
+}
+QPointF Support::coordinates()
+
+{
+	 
+		return co;
+
+}
+void Support::updatePoint(double a, double b,QString& s)
+{
+	lat = a;
+	lon = b;
+ 	qDebug()<<"SUPPORT updatePoint "<<lat<<lon;
+	emit pointChanged(lat,lon,s);
+}

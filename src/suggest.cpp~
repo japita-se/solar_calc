@@ -1,0 +1,87 @@
+#include "suggest.h"
+#include <QDebug>
+
+Suggest::Suggest(QWidget *parent ) : QDialog(parent)
+{
+	setupUi(this);
+	localPanel.isValid = false;
+	localLoss = 0;
+	radiation = 0;
+	
+	pushSuggerisci->setEnabled(false);
+	connect(pushSuggerisci,SIGNAL(clicked()),SLOT(compute()));
+	 
+}
+
+void Suggest::setPanel(panel p)
+{
+	localPanel = p;
+	powerPanel = p.pnom;
+	areaPanel = p.H * p.L/1000000;//we suppose that dimension are in mm
+	if (areaPanel==0)
+		
+		QMessageBox::warning(this,tr("Errore"),tr("Area del pannello nulla. Hai selezionato il pannello? Se si', ricontrolla il database dei pannelli"),QMessageBox::Ok);
+}
+void Suggest::setRad(double r)
+{
+	radiation = r;
+	if (radiation>0)
+	pushSuggerisci->setEnabled(true);
+	else
+	pushSuggerisci->setEnabled(false);
+}
+void Suggest::setInverter(inverter i)
+{
+	localInverter = i;
+	if (i.isValid)
+		inverterEff = i.eff/100;
+	else
+		inverterEff = 1;
+}
+void Suggest::setLoss(double o)
+{
+		localLoss = o;
+}
+
+void Suggest::compute()
+{
+	 
+	if (pushSuggerisci->isEnabled() && localPanel.isValid && (areaPanel!=0) && (powerPanel!=0) && (radiation>0)) {
+		
+		switch (dSpinBoxPotenza->value()!=0) {
+
+		   case true:
+			area 	  = dSpinBoxPotenza->value()*areaPanel/powerPanel;
+			numPanels =  ceil(area/areaPanel);
+			
+		   break;
+		   case false:
+			if (dSpinBoxConsumi->value()>0) {
+			qDebug()<<dSpinBoxConsumi->value()<<areaPanel<<radiation<<(1-localLoss/100)<<(inverterEff)<<powerPanel ;
+				
+			
+			area = (dSpinBoxConsumi->value()*1000*areaPanel)/
+				(radiation * (1-localLoss/100) * (inverterEff) * powerPanel );
+				numPanels = ceil(area/areaPanel);
+			
+			}
+				
+		   break;
+	}
+			labelArea->setText(QString::number(area));	
+			labelNum->setText(QString::number(numPanels));
+       }
+}
+
+
+double Suggest::getArea()
+{
+	return area;
+}
+double Suggest::getNum()
+{
+	return numPanels;
+}
+Suggest::~Suggest()
+{};
+	

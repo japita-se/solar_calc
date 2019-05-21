@@ -1,0 +1,235 @@
+#include "datiinverter.h"
+#include "doubledelegate.h"
+#include <QSqlTableModel>
+#include <QTableView>
+#include <QDebug>
+#include <QSqlRecord>
+#include <QMessageBox>
+#include <QSortFilterProxyModel>
+#include <QSqlQuery>
+#include <QSqlError>
+DatiInverter::DatiInverter(QWidget* parent): QDialog(parent)
+{
+	setupUi(this);
+	model = new QSqlTableModel;
+	proxyModel = new QSortFilterProxyModel(this);
+	proxyModel->setDynamicSortFilter(true);
+	connect(lineSearch,SIGNAL(textChanged(const QString&)),this,SLOT(setFilter(const QString&)));
+	QVector<int> d(5);
+	d<<18<<11<<12<<13;
+ 	tViewDatiInverter->setItemDelegate(new DoubleDelegate(d,100,0));
+	 connect(model,SIGNAL(beforeUpdate(int,QSqlRecord &)),SLOT(beforeUpdate(int,QSqlRecord&)));
+	connect(tViewDatiInverter,SIGNAL(doubleClicked(const QModelIndex &)),SLOT(enableApply(const QModelIndex&)));
+	 
+	connect(this,SIGNAL(accepted()),SLOT(getInverter()));
+	connect(comboFilter,SIGNAL(currentIndexChanged(const QString &)),this,SLOT(setFilter(const QString &)));
+	connect(lineSearch,SIGNAL(editingFinished()),SLOT(getInverter()));
+	connect(pushApplica,SIGNAL(clicked()),SLOT(submitChange()));
+	
+	pushApplica->setEnabled(false);
+
+	connect(pushElimina,SIGNAL(clicked()),SLOT(deleteRow()));
+}
+void DatiInverter::deleteRow()
+{
+	QString deleteSet = "(";
+	int question = QMessageBox::question(this,tr("SolarCalc - Cancella inverter"),tr("Sei sicuro di voler cancellare l' inverter?"),QMessageBox::Ok,QMessageBox::Cancel);
+        if (question==QMessageBox::Ok) {
+		QModelIndexList toCutIndex = tViewDatiInverter->selectionModel()->selectedIndexes();
+		 for(int i=0;i<toCutIndex.size();i++) {
+
+                        QSqlRecord c = model->record(toCutIndex.at(i).row());
+			 #ifdef DEBUG
+                        qDebug()<<toCutIndex.at(i).row()<<c.value(0);
+                        #endif
+
+                                if (i>0)
+				deleteSet += "," + c.value(0).toString();
+                                else
+                                deleteSet += c.value(0).toString();
+                }
+	 deleteSet += ")";
+
+ 	 QSqlQuery query(database);
+	  
+	 query.prepare("DELETE FROM inverter WHERE id in "+deleteSet);
+	 query.exec();
+	 qDebug()<<"Datipannello dleterow"<<query.lastError();
+	 initializeModel();
+	 refreshView();
+
+}
+}
+ 
+void DatiInverter::submitChange()
+{
+	model->submitAll();
+	pushApplica->setEnabled(false);
+// 	qDebug()<<"submit in datipannello"<<model->submitAll()<<model->database().tables()<<table;
+	
+}
+void DatiInverter::setDatabase(const QSqlDatabase &db,const QString &t)
+{
+	database = db;	
+	table = t;
+	if (model){
+		delete model;
+		model = new QSqlTableModel(0,database);
+	}
+
+	initializeModel();
+	refreshView();
+	 
+}
+void DatiInverter::refreshView()
+{	
+	initializeModel();
+	
+		proxyModel->setSourceModel(model);
+	
+		tViewDatiInverter->setModel(proxyModel);
+		
+ 		tViewDatiInverter->setColumnHidden(0,true);
+
+		 
+}
+void DatiInverter::initializeModel()
+{
+	if (model) {
+		model->setTable(table);
+		 model->setEditStrategy(QSqlTableModel::OnManualSubmit);
+ 		 model->select();
+ 		
+		 
+// 		model->removeColumn(0);
+		model->setHeaderData(1, Qt::Horizontal, tr("Marca"));
+		model->setHeaderData(2, Qt::Horizontal, tr("Modello"));
+		model->setHeaderData(3, Qt::Horizontal, tr("Pin"));
+		model->setHeaderData(4, Qt::Horizontal, tr("Pnom"));
+	/*	model->setHeaderData(5, Qt::Horizontal, tr("Isc"));
+		model->setHeaderData(6, Qt::Horizontal, tr("Imp"));
+		model->setHeaderData(7, Qt::Horizontal, tr("NOCT"));
+		model->setHeaderData(8, Qt::Horizontal, tr("Peso"));*/	
+		model->setHeaderData(5, Qt::Horizontal, tr("Vmax"));
+		model->setHeaderData(6, Qt::Horizontal, tr("Vmin"));
+		model->setHeaderData(7, Qt::Horizontal, tr("Vpmin"));
+		model->setHeaderData(8, Qt::Horizontal, tr("Vpmax"));
+		model->setHeaderData(9, Qt::Horizontal, tr("Imax"));
+		model->setHeaderData(10, Qt::Horizontal, tr("efficienza"));
+		model->setHeaderData(11, Qt::Horizontal, tr("usura"));
+// 		model->setHeaderData(14, Qt::Horizontal, tr("tol."));
+// 		model->setHeaderData(15, Qt::Horizontal, tr("H"));
+// 		model->setHeaderData(16, Qt::Horizontal, tr("L"));
+// 		model->setHeaderData(17, Qt::Horizontal, tr("s"));
+// 		model->setHeaderData(18, Qt::Horizontal, tr("efficienza"));
+		 model->select();
+	}
+	 
+}
+void DatiInverter::setFilter(const QString &filtro)
+{
+	int index;
+	if (model)
+		index = model->record().indexOf(comboFilter->currentText());
+	else
+		index = -1;
+	
+	proxyModel->setFilterKeyColumn(index);
+        QRegExp regExp(filtro, Qt::CaseInsensitive , QRegExp::PatternSyntax(QRegExp::FixedString));
+        proxyModel->setFilterRegExp(regExp);
+}
+
+DatiInverter::~DatiInverter()
+{
+}
+inverter DatiInverter::getSelectedInverter()
+{
+	return inv;
+}
+inverter DatiInverter::getSelectedInverter(int row)
+{
+	model->setFilter("id="+QString::number(row));
+	model->select();
+	if (row>0) {
+// 	QSqlRecord r = model->record( row );
+	inv.fabric = model->record(0).value("costruttore").toString();
+	inv.model  = model->record(0).value("modello").toString();
+	inv.vmax =   model->record(0).value("vmax").toDouble();
+	inv.vmin  =  model->record(0).value("vmin").toDouble();
+	inv.vmpmin    = model->record(0).value("vmpmin").toDouble();
+	inv.vmpmax   = model->record(0).value("vmpmax").toDouble();
+	inv.imax   = model->record(0).value("imax").toDouble();
+	inv.eff    = model->record(0).value("efficienza").toDouble();
+	inv.gar    = model->record(0).value("usura").toDouble();
+	inv.pnom = model->record(0).value("pnom").toDouble();
+	inv.pin  = model->record(0).value("pin").toDouble();
+	inv.indexDB = model->record(0).value("id").toInt();
+	inv.isValid = true;
+// 	 qDebug()<<"Dati Inverter id"<<model->record(0).value("id").toInt()<<row;
+	}
+	else
+	{
+	inv.isValid = false;
+	 
+	}
+	return inv;
+}
+ void DatiInverter::getInverter()
+{
+	 
+	
+	QModelIndex currentIndex = tViewDatiInverter->currentIndex();
+	if (currentIndex.isValid()) {
+	QSqlRecord r = model->record(currentIndex.row());
+	inv.fabric = r.value("costruttore").toString();
+	inv.model  = r.value("modello").toString();
+	inv.vmax = r.value("vmax").toDouble();
+	inv.vmin  = r.value("vmin").toDouble();
+	inv.vmpmin    = r.value("vmpmin").toDouble();
+	inv.imax   = r.value("imax").toDouble();
+	inv.vmpmax   = r.value("vmpmax").toDouble();
+	inv.eff    = r.value("efficienza").toDouble();
+	inv.gar    = r.value("usura").toDouble();
+	inv.pnom = r.value("pnom").toDouble();
+	inv.pin  = r.value("pin").toDouble();
+	inv.indexDB = r.value("id").toInt();
+	inv.isValid = true;
+	 
+	}
+	else
+	{
+	inv.isValid = false;
+	 
+	}
+	
+}
+void DatiInverter::beforeUpdate(int row,QSqlRecord &record)
+{	
+	
+	double eff = record.value("efficienza").toDouble();
+	double gar = record.value("usura").toDouble();
+	 
+	 
+	if (eff<=0)
+		QMessageBox::warning(this,tr("Efficienza errata"),tr("Hai inserito un'efficienza che sembra errata. Ricontrolla."),QMessageBox::Ok);
+	if (gar<=0)
+		QMessageBox::warning(this,tr("Garanzia errata"),tr("Hai inserito una garanzia che sembra errata. Ricontrolla."),QMessageBox::Ok);
+	
+}
+void DatiInverter::enableApply(const QModelIndex &y)
+{
+	
+	pushApplica->setEnabled(true);
+}
+// void DatiInverter::beforeUpdate(int row,QSqlRecord &record)
+// {	
+// 	
+// 	double eff = record.value("efficienza").toDouble();
+// 	double H   = record.value("h").toDouble();
+// 	double l   = record.value("l").toDouble();
+// 	double p   = record.value("pnom").toDouble();
+// 	double area = (H*l)/1000000;/* area in mq*/
+// 	qDebug()<<"DatiInverter beforet Insert"<<eff<<p <<H<<l;
+// 	if ((p/1000*area)<eff)
+// 		QMessageBox::warning(this,tr("Efficienza errata"),tr("Hai inserito un'efficienza che sembra errata rispetto alle dimensioni del pannello e alla Pnom. Ricontrolla."),QMessageBox::Ok);
+// }

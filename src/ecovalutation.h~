@@ -1,0 +1,158 @@
+#ifndef ECOVAL_H
+#define ECOVAL_H
+#include "mymath.h"
+#include "ui_ecoval.h"
+#include <QtGui>
+#include "data.h"
+
+class HistogramItem;
+class QwtPlotCurve;
+class QStringListModel;
+class EcoVal : public QWidget, public Ui::widgetEcoVal
+{
+	Q_OBJECT
+public:
+	EcoVal(QWidget* parent=0);
+	~EcoVal();
+// 	QwtPlot* rawDiagram();
+// 	QwtPlot* vanDiagram();
+	void setInstalledPower(double a);
+	double getYearlyAssic();
+	double getYearlyAssicNPV(int year);
+	double getDepreciationNPV(int year);
+	double getDepreciation();
+	void setProjectFolder(const QString &f);
+	void setEcoParameters(const ecopara a);
+	ecopara getEcoParameters();
+	double getTaxVatReduction();
+	double getFreqCosts(int i);
+	double getYearlyInterestNPV(int year);
+	double getTaxReduction();
+	double getYearlyTaxReductionOnInterest(int year);
+	double getYearlyTaxReductionOnInterestNPV(int year);
+	double getYearlyLoan(int i);
+	double getYearlyLoanNPV(int year);
+	double getYearlyInterest( int year);
+	double getInitialCost();
+	double getNPVFactor(double C,int year);
+// 	void drawNPV(const QPolygonF &npv);
+//         void drawCS(const QPolygonF &cs);
+// 	void drawFlowCash(const QPolygonF &data);
+	int getRegime();
+	double getYearlyCost();
+	
+	double getEnergyCost(int hour,int month,int day,int year);
+        QVector<double> getContribute(QPolygonF Eprod,QPolygonF epr, QPolygonF ei, QPolygonF opr, double credit,int year);
+// 	double getHourlyLoad(int hour,int month,int year);
+	bool bandError();
+	
+public slots:
+	void computeLoan();
+	void processEnergyPrices( );
+	void processMinEnergyPrices( );
+	void reProcessEnergyPrices(bool i);
+	void reProcessMinEnergyPrices(bool i);
+	void checkBands();
+ signals:
+	void isDirty();
+private slots:
+// 	void printOut();
+// 	void exportPDF();
+// 	void exportSVG();
+// 	void exportPNG();
+// 	void popUpMenu(const QPoint &a);
+	void updateInfoPrezzi();
+	void updateInfoPrezziMinimi();
+	void updateInfoBands();
+	void updateInfo();
+	void changeSelectedBand(const QModelIndex& i);
+        void setPlots(int y);
+	void toggleCoeff(int i);
+	void loadTariffeFromCombo(int index);
+	void loadPricesFromList(QModelIndex y);
+	void loadMinPricesFromList(QModelIndex y);
+	void loadBandFromList(QModelIndex y);
+	void loadP();
+	void loadMinP();
+	bool loadPrezzi(QString input);
+	bool loadMinPrezzi(QString input);
+	void loadTariffe();
+	void loadB();
+	void updatePrezzi(QTableWidgetItem* current );
+	void updateMinPrezzi(QTableWidgetItem* current);
+	bool loadBands(QString input);
+	void updateBandsDa(int i);
+	void updateBandsA(int i);
+	void updateBandsVal(double d);
+	void updateView(int i);
+public slots:
+	void savePrezziAs();
+	void saveMinPrezziAs();
+	void saveP();
+	void saveMinP();
+	
+	void saveBandsAs();
+	void saveBandsValues(QString s);
+	void saveAs();
+	bool getTariffeFromFile(QString s);
+	void save();
+	void saveTariffe(QString);
+	
+	void saveBands();
+	 
+	
+	
+protected:
+// 	void createActions();
+	void updateTableBandsView( );
+	void updateTableBandsView(int i,int x );
+	void updatePrezziView();
+	void updateMinPrezziView();
+	void savePrezzi(QString s);
+	void saveMinPrezzi(QString s);
+	void updatePrezziLabel(QString s);
+	void updateMinPrezziLabel(QString s);
+	void updateRecent(QString s);
+	
+	void updateRecentBands(QString s);
+	void updatePrezziPlot();
+	void updateMinPrezziPlot();
+	void setDefault();
+
+	void alignScales();
+	double findValue(int a,int b,int hour);
+	
+private:
+	double installedPower,assicurazione;
+	QString recentDir,recentDirPrezzi,recentDirMinPrezzi,recentFile,w1,message1,message2,w2,w3,w4,fileTariffe,fileBands;
+	QString filePrezzi,fileMinPrezzi,titleBox,titleBandBox,titleTariffeBox;
+	QString infoTariffe,infoPrezzi,infoBands,infoPrezziMinimi;
+	bool bandsError,doNotCheck;
+	int numOfWBands,numOfTariffe;
+	QStringList values,recent,recentBands,recentBandsFileName,recentPricesFileName,recentPrices,recentMinPricesFileName,recentMinPrices; //3 values here
+	QList<QStringList> bands,bandsDefault;// every 
+	QVector<double> mPrezziEnergia,mPrezziEnergiaSpan,minEnergyPrices;
+	QString recentSave;
+	QStringListModel *model,*modelInj,*modelSell;
+	int numBands;
+
+	QwtPlotCurve *prezziPlot,*csPlot,*minPrezziPlot;
+// 	QwtPlotCurve *vanPlot,*rawPlot,*csPlot;
+	
+	HistogramItem *vanPlot,*rawPlot;
+	enum{
+	Vendita,
+	SSPIT,
+	SSP
+	};
+	enum{
+	error,
+	noError
+	};
+	int loan;
+	int ammPeriodo;
+  	QString recentExportPath,projectFolder;
+// 	QAction *a_print,*a_export,*a_exportPNG,*a_exportPDF;
+	QPointF cursorPos;
+};
+#endif

@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="64px"
+   height="64px"
+   id="svg2816"
+   version="1.1"
+   inkscape:version="0.47 r22583"
+   sodipodi:docname="New document 2">
+  <defs
+     id="defs2818">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 32 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="64 : 32 : 1"
+       inkscape:persp3d-origin="32 : 21.333333 : 1"
+       id="perspective2824" />
+    <inkscape:perspective
+       id="perspective3639"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective3639-7"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective3639-0"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="2.8624519"
+     inkscape:cx="33.669492"
+     inkscape:cy="21.925917"
+     inkscape:current-layer="layer1"
+     showgrid="true"
+     inkscape:document-units="px"
+     inkscape:grid-bbox="true"
+     inkscape:snap-grids="false"
+     inkscape:window-width="1079"
+     inkscape:window-height="832"
+     inkscape:window-x="92"
+     inkscape:window-y="96"
+     inkscape:window-maximized="0">
+    <inkscape:grid
+       type="xygrid"
+       id="grid2826" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata2821">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="layer1"
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer">
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 5,14 5,59 55,59 55,4 20,4 20,14 5,14 z"
+       id="path3607"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <path
+       style="fill:#aa8800;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 5.0023242,13.853244 20,4"
+       id="path3611"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 7.657879,16.570556 0,37.54831 c 0.4117139,0 0.8234279,0 1.2351418,0"
+       id="path3623"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 7.657879,53.871837 44.465104,0.247029 0,-45.2061891 -31.866658,0.4940567"
+       id="path3625"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 7.9049074,16.817584 7.657879,14.347301"
+       id="path3627"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="M 15.315758,17.311641 44.218076,17.064613"
+       id="path3629"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="M 14.945215,25.587091 43.847533,25.340063"
+       id="path3629-1"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="M 13.957102,34.974168 42.85942,34.72714"
+       id="path3629-4"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="M 13.957102,42.13799 42.85942,41.890962"
+       id="path3629-9"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <g
+       id="g3690"
+       transform="matrix(0.43404813,0.45601692,-0.45375437,0.43621241,72.022821,23.769678)"
+       inkscape:export-filename="C:\Users\giuseppe\Documents\Programmi\solar3Plus\src\images\edit.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90">
+      <rect
+         y="64.494057"
+         x="-35.572083"
+         height="14.945215"
+         width="15.809814"
+         id="rect3688"
+         style="opacity:0.98000004;fill:#ffffff;fill-opacity:0.99607843;stroke:#000000;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <rect
+         style="opacity:0.98000004;fill:#ffffff;fill-opacity:0.99607843;stroke:#000000;stroke-width:0.89999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+         id="rect3678"
+         width="15"
+         height="60"
+         x="-35"
+         y="4" />
+      <rect
+         y="4"
+         x="-35"
+         height="60"
+         width="15"
+         id="rect3613"
+         style="opacity:0.98000004;fill:#aa8800;fill-opacity:0.99607843;stroke:#000000;stroke-width:0.89999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <rect
+         y="4.6987019"
+         x="-25"
+         height="58.6026"
+         width="4.1266227"
+         id="rect3615"
+         style="opacity:0.98000004;fill:#ffd42a;fill-opacity:0.99607843;stroke:#000000;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <rect
+         style="opacity:0.98000004;fill:#ffdd55;fill-opacity:0.99607843;stroke:#000000;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+         id="rect3617"
+         width="4.1266227"
+         height="58.6026"
+         x="-29.017534"
+         y="4.6987019" />
+      <path
+         id="path3619"
+         d="m -34.854598,64.383789 6.201643,14.64515 8.441126,-14.817447 -14.642769,0.172297 z"
+         style="fill:none;stroke:#000000;stroke-width:0.98629719px;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1" />
+      <path
+         id="path3621"
+         d="m -31.195327,72.37575 2.120293,-1.579171 1.141695,1.579171 1.467894,-1.052781 0.978596,1.052781 -2.60959,5.439372 -3.098888,-5.439372 z"
+         style="fill:#2b1100;stroke:#000000;stroke-width:0.96847367px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+    </g>
+  </g>
+</svg>

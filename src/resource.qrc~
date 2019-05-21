@@ -1,0 +1,54 @@
+<!DOCTYPE RCC><RCC version="1.0">
+ <qresource>
+     <file>images/app.png</file>
+     <file>splash/screen1.jpg</file>
+     <file>splash/interfaccia1.jpg</file> 
+     <file>splash/interfaccia2.jpg</file> 
+     <file>images/Reflections.ico</file>
+     <file>images/albedo.ico</file>
+     <file>images/shade.ico</file>
+     <file>images/delete-shade.ico</file>
+    <file>images/export.png</file>
+    <file>images/falling-leaves.ico</file>
+<file>images/print.png</file>
+<file>images/pdf.jpeg</file>
+<file>images/adobe.ico</file>
+<file>images/settings.png</file> 
+<file>images/arrow.png</file>
+<file>images/tracker.png</file>
+<file>images/trackerarray.png</file>
+<file>images/addcomponent.png</file>
+<file>images/selectcomponent.png</file>
+<file>images/editorconsumi.png</file>   
+<file>images/selectinv.png</file> 
+<file>images/open.png</file>
+<file>images/save.png</file>
+<file>images/new.png</file>
+<file>images/filesaveas.png</file> 
+<file>images/play.png</file> 
+<file>images/play2.png</file> 
+<file>images/wizard.png</file>  
+<file>images/vela.jpg</file>  
+<file>images/fisso.jpg</file>  
+<file>images/doppio.jpg</file>  
+<file>images/editorshadow.png</file>
+ <file>images/icona.png</file> 
+ <file>images/logo3.png</file> 
+ <file>images/plot.png</file> 
+<file>images/table.png</file> 
+ <file>images/ecopara.png</file>  
+ <file>images/supcap.png</file>
+ <file>images/meteo.png</file>  
+ <file>images/site.png</file>   
+ <file>images/World.ico</file>  
+ <file>images/opti.png</file> 
+<file>images/opti2.png</file> 
+<file>images/inverter2.png</file>
+<file>images/inverter3.svg</file>
+<file>images/ledverde.png</file>
+<file>images/ledrosso.png</file>
+<file>images/ledspento.png</file> 
+<file>images/panel.jpg</file>
+<file>translations/solarcalc_en.qm</file>
+ </qresource>
+ </RCC>

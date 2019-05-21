@@ -1,0 +1,171 @@
+#include "map.h"
+// #include "ui_showmap.h"
+#include <QNetworkRequest>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QDomDocument>
+#include <QDomElement>
+#include <QWebFrame>
+#include <QWebPage>
+#include <QEventLoop>
+#include <QApplication>
+#include <QDebug>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <math.h>
+#include <QTimer>
+
+Map::Map(QWidget *parent) : QWebView(parent), pendingRequests(0)
+{
+	
+	 
+	manager = new QNetworkAccessManager(this);
+
+	this->page()->mainFrame()->addToJavaScriptWindowObject("Map", this);
+	
+// 	connect(this->page(),SIGNAL(loadFinished(bool)),SLOT(waitPage()));
+	connect(this,SIGNAL(urlChanged(const QUrl&)),SLOT(waitPage()));
+        connect(page()->mainFrame(), SIGNAL(javaScriptWindowObjectCleared()),
+            this, SLOT(populateJavaScriptWindowObject()));
+
+	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(replyFinished(QNetworkReply*)));
+	connect(this,SIGNAL(reloadMap()), this,SLOT(loadCoordinates()));
+	 
+}
+
+void Map::waitPage( )
+{
+// 	QTimer::singleShot(5000,this,SLOT(examinePage()));
+}
+void Map::examinePage()
+{
+	QString javascript = QString("getlat()");
+	  lat  = page()->currentFrame()->evaluateJavaScript(javascript).toDouble();
+	javascript = QString("getlng()");
+          lon = page()->currentFrame()->evaluateJavaScript(javascript).toDouble();
+         javascript = QString("getName()");
+  	  address = page()->currentFrame()->evaluateJavaScript(javascript).toString();
+//   	qDebug()<<"MAP new coord point "<<lat<<lon<<address;
+	if (lat>=-180 && lat <=180 && lon>=-180 && lon<=180)
+		emit coordinatesReady(lat,lon,address);
+
+}
+void Map::geoCode(QString local, int i )
+{
+	mode = i;
+	clearCoordinates();
+//   	qDebug()<<"MAP SUPPORT geoCode"<<local;
+//   	qDebug()<<"Map finding..."<<local;
+	QString requestStr( tr("http://maps.google.com/maps/geo?q=%1&output=%2&sensor=%4")
+			.arg(local)
+			.arg("csv")
+			
+			.arg("false"));
+
+	manager->get( QNetworkRequest(requestStr) );
+	++pendingRequests;
+//   	qDebug()<<"MAP SUPPORT query"<<requestStr;
+	if (mode==numeric){
+		QStringList cc = local.split(",");
+		lat  = cc.at(0).toDouble();
+		if (cc.size()>1)
+		lon  = cc.at(1).toDouble();
+		else
+		lon  = 0;
+	}
+}
+void Map::replyFinished(QNetworkReply *reply)
+{
+    QString replyStr( reply->readAll() );
+      coordinateStrList = replyStr.split(",");
+// : coordinateStrList.clear();
+//     qDebug()<<"SUPPORT lsit"<<coordinateStrList;
+    if( coordinateStrList.size() == 4  )
+    {
+        QPointF coordinate( coordinateStrList[2].toFloat(),coordinateStrList[3].toFloat() );
+        coordinates << coordinate;
+    }
+	
+//  	qDebug()<<"MAP SUPPORT reply"<<coordinateStrList<<coordinates;
+    --pendingRequests;
+    if( pendingRequests<1  )
+    {
+	
+        emit( reloadMap() ); 
+    }
+
+}
+
+void Map::loadCoordinates()
+{
+	this->page()->mainFrame()->evaluateJavaScript(QString("clearO()") );
+	if (mode==textCity){
+				foreach(QPointF point ,coordinates)
+			{
+					this->page()->mainFrame()->evaluateJavaScript( 
+							QString("Open(%1,%2)").arg(point.x()).arg(point.y()) );
+  				qDebug()<<"Coordinates "<<coordinates; 
+			}
+	}
+	if (mode==numeric)	
+			this->page()->mainFrame()->evaluateJavaScript( 
+							QString("Open(%1,%2)").arg(lat ).arg(lon  ) );
+}
+void Map::loadCoordinates( double la,   double lo)
+{
+	this->page()->mainFrame()->evaluateJavaScript(QString("clearO()") );
+	foreach(QPointF point ,coordinates)
+    {
+		this->page()->mainFrame()->evaluateJavaScript( 
+				QString("Open(%1,%2)").arg(la).arg(lo) );
+//   	qDebug()<<"Coordinates "<<coordinates; 
+    }	
+}
+QPointF Map::getCoordinates()
+{	
+// 	qDebug()<<"MAP getCoordinates"<<coordinates;
+	if (coordinates.size()>0  )
+	return coordinates.at(0);
+	else
+	return QPointF();
+  
+}
+QString Map::getName()
+{
+	if (coordinateStrList.size()>4  ){
+		if (coordinateStrList.at(1)=="6")
+			{
+// 			qDebug()<<"MAP 1"<<coordinateStrList;
+			return coordinateStrList.at(2)+","+coordinateStrList.at(3);
+			}
+		else
+			{
+// 			qDebug()<<"MAP 2"<<coordinateStrList;
+			return QString("");
+			}
+			
+	}
+// 	qDebug()<<"MAP 3"<<coordinateStrList;
+	return QString();
+}
+void Map::clearCoordinates()
+{
+    coordinates.clear();
+}
+
+void Map::populateJavaScriptWindowObject()
+{
+	this->page()->mainFrame()->addToJavaScriptWindowObject("Map", this);
+
+}
+void Map::setValues(const QString &latitude, const QString &longitude, const QString &n)
+{
+// 	lat = latitude.toDouble();
+// 	lon = longitude.toDouble();
+// 	name = n;
+// 	qDebug()<<"MAP new values available";
+}
+void Map::test()
+{
+	qDebug()<<"test finished";
+}

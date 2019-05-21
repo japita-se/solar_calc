@@ -1,0 +1,41 @@
+#ifndef SUPPORT_H
+#define SUPPORT_H
+#include <QtGui>
+
+class QWebView;
+class Map;
+class Support:public QWidget
+{
+	Q_OBJECT;
+public:
+	Support(QWidget* parent=0);
+	QString googleName();
+	void showWarn(bool a);
+	void setCity(QString name);
+	void setCo(  double a,   double b);
+	QString cityLocal();
+	QSize minimumSizeHint() const;
+	QPointF coordinates();
+private slots:
+	void setCoordinates();
+	void updatePoint(double a, double b,QString& s);
+signals:
+	void coordinatesValid();
+	void pointChanged(double a,double b,QString& c);
+private:
+	QLabel *warn;
+	Map *map;
+	QString city;
+	QPointF co;
+	bool wait;
+	int mode;
+	double lat,lon;
+	enum {
+	numeric,
+	textCity
+	};
+	QString locName;
+protected:
+ void paintEvent(QPaintEvent* event) ;
+};
+#endif

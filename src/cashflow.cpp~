@@ -1,0 +1,759 @@
+#include "mymath.h"
+#include "cashflow.h"
+#include <qwt_plot_layout.h>
+#include "settings.h"
+#include "gridset.h"
+#include <qwt_plot_panner.h>
+#include <qwt_picker.h>
+#include <qwt_plot_picker.h>
+#include <qwt_curve_fitter.h>
+#include <qwt_spline.h>
+#include <qwt_plot_canvas.h>
+#include <qwt_scale_draw.h>
+#include <qwt_scale_widget.h>
+#include <qwt_painter.h>
+#include <qwt_plot_grid.h>
+#include <qwt_symbol.h>
+#include <qwt_plot_curve.h>
+#include <qwt_plot_marker.h>
+#include <qwt_plot_curve.h>
+ #include "settings.h"
+#include "gridset.h"
+#include "histogram_item.h"
+#include <qwt_legend.h>
+// #include <qwt_data.h>
+#include <qwt_text.h>
+#include <qwt_interval_data.h>
+
+CashFlowPlot::CashFlowPlot(QWidget* parent)  
+{
+	setupUi(this);
+	QwtPainter::setDeviceClipping(false);
+	 gridSettings = new GridSet();
+   	 gridSettings->setAsseX(Qt::Unchecked);
+    	gridSettings->setAsseY(Qt::Unchecked);
+    	connect(gridSettings,SIGNAL(accepted()),SLOT(updateGrid()));
+	
+ 
+ // Set default settings
+	set = new Settings();
+	set->radioMJ->setEnabled(false);
+	set->radiokWh->setEnabled(false);
+	connect(set,SIGNAL(accepted()),SLOT(updateSet()));
+
+	setVan = new Settings();
+	setVan->radioMJ->setEnabled(false);
+	setVan->radiokWh->setEnabled(false);
+	connect(setVan,SIGNAL(accepted()),SLOT(updateSetVan()));
+
+  
+
+
+
+   picker = new QwtPlotPicker(QwtPlot::xBottom, QwtPlot::yLeft,QwtPicker::PointSelection , QwtPlotPicker::CrossRubberBand, QwtPicker::AlwaysOn,qwtVan->canvas());
+   picker->setRubberBandPen(QColor(Qt::black));
+   picker->setRubberBand(QwtPicker::CrossRubberBand);
+   picker->setEnabled(true);
+  
+   picker->setTrackerPen(QColor(Qt::black));
+
+	connect(picker, SIGNAL(moved(const QPoint &)),SLOT(moved(const QPoint &)));
+	connect(picker, SIGNAL(selected(const QwtPolygon &)),SLOT(selected(const QwtPolygon &)));
+	
+	qwtVan->enableAxis(QwtPlot::yLeft,true);
+	
+	qwtVan->setCanvasBackground(QColor(Qt::white));
+	 
+// 	grid->attach(qwtVan);
+
+// 	vanPlot 	= new QwtPlotCurve();
+
+	rataPlot = new HistogramItem();
+	rataPlot->attach(qwtPlot);
+	rataPlot->setColor(Qt::darkYellow);
+
+	rataNPVPlot = new HistogramItem();
+	rataNPVPlot->attach(qwtVan);
+	rataNPVPlot->setColor(Qt::darkYellow);
+
+	interestPlot = new HistogramItem();
+	interestPlot->attach(qwtPlot);
+	interestPlot->setColor(Qt::darkYellow);
+
+	interestNPVPlot = new HistogramItem();
+	interestNPVPlot->attach(qwtVan);
+	interestNPVPlot->setColor(Qt::darkYellow);
+	
+	vanPlot		= new HistogramItem();
+	vanPlot->attach(qwtVan);
+	vanPlot->setColor(Qt::darkGray);
+	 
+// 	rawPlot = new QwtPlotCurve();
+	rawPlot = new HistogramItem();
+	rawPlot->attach(qwtPlot);
+	rawPlot->setColor(Qt::darkGray);
+
+// 	csPlot = new QwtPlotCurve();
+// 	csPlot->setPen(QPen(Qt::blue));
+// 	csPlot->attach(qwtPlot);
+
+	qwtPlot->setCanvasBackground(QColor(Qt::white));
+//   	canvas()->setMouseTracking(true);
+// 	canvas()->setTrackerMode(AlwaysOn);
+   
+  // plotLayout()->setAlignCanvasToScales(true);
+  createActions();
+  setPlots(20);
+  this->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(this,SIGNAL(customContextMenuRequested(const QPoint &  )),this,SLOT(popUpMenu(const QPoint &)));
+   alignScales();
+   drawInterestFlag = false;
+   s="";
+
+    grid = new QwtPlotGrid;
+    grid->enableX(false);
+    grid->enableXMin(false);
+    grid->enableY(false);
+    grid->enableYMin(false);
+    grid->setMajPen(QPen(Qt::gray, 0, Qt::DotLine));
+    grid->setMinPen(QPen(Qt::gray, 0 , Qt::DotLine));
+    grid->attach(qwtPlot);
+	
+    grid2 = new QwtPlotGrid;
+    grid2->enableX(false);
+    grid2->enableXMin(false);
+    grid2->enableY(false);
+    grid2->enableYMin(false);
+    grid2->setMajPen(QPen(Qt::gray, 0, Qt::DotLine));
+    grid2->setMinPen(QPen(Qt::gray, 0 , Qt::DotLine));
+    grid2->attach(qwtVan);
+}
+void CashFlowPlot::toggleInterestPlot(int state)
+{	
+	if (state==Qt::Checked)
+		drawInterestFlag = true;
+	else
+		drawInterestFlag = false;
+	
+	
+		
+}
+void CashFlowPlot::setPlots(int years)
+{
+	
+  	
+	QwtText xlabel(tr("Mese"));
+	QwtText ylabel(tr("c/[kWh]"));
+	ylabel.setFont(QFont("Times",12,QFont::Normal));
+	xlabel.setFont(QFont("Times",12,QFont::Normal));
+
+	
+
+	
+  	
+	 
+
+	QwtText tlabel2(tr("Flusso di Cassa - Attualizzazione"));
+	tlabel2.setFont(QFont("Times",12,QFont::Normal));
+	QwtText xlabel2(tr("Anno"));
+	QwtText ylabel2(tr("valore monetario unitario"));
+	ylabel2.setFont(QFont("Times",12,QFont::Normal));
+	xlabel2.setFont(QFont("Times",12,QFont::Normal));
+	setVan->setTitle(ylabel2.text());
+	
+	qwtVan->setAxisTitle(QwtPlot::xBottom,xlabel2);
+        qwtVan->setAxisTitle(QwtPlot::yLeft,ylabel2);
+	qwtVan->setTitle(tlabel2);
+//         qwtVan->setAxisScale(QwtPlot::xBottom,0,years);
+  	 
+	QwtText tlabel3(tr("Flusso di cassa - Dati grezzi"));
+	tlabel3.setFont(QFont("Times",12,QFont::Normal));
+	QwtText xlabel3(tr("Anno"));
+	QwtText ylabel3(tr("valore monetario unitario"));
+	ylabel3.setFont(QFont("Times",12,QFont::Normal));
+	xlabel3.setFont(QFont("Times",12,QFont::Normal));
+	set->setTitle(ylabel3.text());
+	qwtPlot->setAxisTitle(QwtPlot::xBottom,xlabel3);
+        qwtPlot->setAxisTitle(QwtPlot::yLeft,ylabel3);
+	qwtPlot->setTitle(tlabel3);
+//         qwtPlot->setAxisScale(QwtPlot::xBottom,0,years);
+
+	qwtPlot->setMargin(10);
+	qwtVan->setMargin(10);
+        qwtPlot->replot();
+        qwtVan->replot();
+//         qDebug()<<"ECO setPlots scale";
+}
+void CashFlowPlot::createActions()
+{
+	a_print       =  new QAction(tr("&Stampa"),this);
+	a_print->setShortcut(tr("Ctrl+P"));
+	a_export      = new QAction(tr("&SVG"),this);
+
+	a_export->setShortcut(tr("Ctrl+S+V"));
+
+ 	a_proprieta   = new QAction(tr("Impostazioni"),this);
+
+ 	a_create_grid = new QAction(tr("Griglia"),this);
+
+	a_exportPNG   = new QAction(tr("PNG"),this);
+	
+	a_exportPDF = new QAction(tr("PDF"),this);
+	a_exportPDF->setIcon(QIcon(":/images/pdf.jpeg"));
+
+
+	connect(a_print,SIGNAL(triggered()),this,SLOT(printOut()));
+	connect(a_export,SIGNAL(triggered()),this,SLOT(exportSVG()));
+	 connect(a_proprieta,SIGNAL(triggered()),this,SLOT(settings()));
+ 	connect(a_create_grid,SIGNAL(triggered()),this,SLOT(gridset()));
+	connect(a_exportPNG,SIGNAL(triggered()),this,SLOT(exportPNG()));
+	connect(a_exportPDF,SIGNAL(triggered()),this,SLOT(exportPDF()));
+	 
+}
+void CashFlowPlot::gridset()
+{
+	if (!gridSettings-isVisible())
+	gridSettings->show();
+}
+void CashFlowPlot::exportSVG()
+{
+}
+ 
+ void CashFlowPlot::printOut()
+{
+	 QPrinter printer(QPrinter::HighResolution);
+	#ifdef Q_WS_X11
+	 printer.setOutputFileName(tr("diagrammasolare.pdf"));
+	#endif
+	 printer.setCreator("Solar Calc");
+         printer.setOrientation(QPrinter::Landscape);
+	 
+	 QPrintDialog dialog(&printer);
+   	 if ( dialog.exec() )
+    	{	
+		QwtPlotPrintFilter filter;
+	//          if ( printer.colorMode() == QPrinter::GrayScale )
+        
+            int options = QwtPlotPrintFilter::PrintAll;
+            options &= ~QwtPlotPrintFilter::PrintBackground;
+            options |= QwtPlotPrintFilter::PrintFrameWithScales;
+            filter.setOptions(options);
+        
+	if (cursorPos.y()<=qwtVan->geometry().y()+qwtVan->geometry().height())
+        	qwtVan->print(printer,filter );
+	if (cursorPos.y()>qwtVan->geometry().y()+qwtVan->geometry().height())
+		qwtPlot->print(printer,filter );
+	
+	}
+}
+void CashFlowPlot::exportPDF()
+{
+	 QString fileName;
+	 fileName = QFileDialog::getSaveFileName(this, tr("Nome file da esportare"),   recentExportPath,"Acrobat ( *pdf)");
+	QFileInfo fileInfo(fileName);
+        recentExportPath = fileInfo.absoluteDir().absolutePath();
+	if ( !fileName.isEmpty() ) {
+	   fileName = MyMath::checkFormat(fileName,"pdf");
+	 QPrinter printer(QPrinter::HighResolution);
+	 printer.setOutputFormat(QPrinter::PdfFormat);
+	 printer.setOutputFileName(fileName);
+	 printer.setCreator("Solar Calc");
+         printer.setOrientation(QPrinter::Landscape);
+	 
+	 
+     
+       
+	    QwtPlotPrintFilter filter;
+//          if ( printer.colorMode() == QPrinter::GrayScale )
+         
+            int options = QwtPlotPrintFilter::PrintAll;
+            options &= ~QwtPlotPrintFilter::PrintBackground;
+            options |= QwtPlotPrintFilter::PrintFrameWithScales;
+            filter.setOptions(options);
+        
+
+// 	qwtVan->print(printer,filter);
+// 	printer.newPage();
+// 	qwtPlot->print(printer,filter);
+
+QPainter painter;
+painter.begin(&printer);
+qwtVan->print(&painter,printer.pageRect(),filter);
+printer.newPage();
+qwtPlot->print(&painter,printer.pageRect(),filter);
+painter.end();
+
+      }
+}	
+void CashFlowPlot::popUpMenu(const QPoint &pos)
+{ 
+// 	cursorPos = this->mapFromGlobal(QCursor::pos());
+ 	QMenu menu;
+	QMenu exMenu(tr("&Esporta"),&menu);
+	
+	
+	exMenu.addAction(a_export);
+	exMenu.addAction(a_exportPNG);
+	exMenu.addAction(a_exportPDF);
+	
+		
+// 	menu.addAction(a_undo_combine);
+	menu.addAction(a_print);
+	menu.addMenu(&exMenu);
+		
+	
+ 	menu.addAction(a_create_grid);
+	menu.addAction(a_proprieta);
+	cursorPos = this->mapFromGlobal(QCursor::pos());
+	#ifdef Q_WS_X11
+	menu.popup(pos);	
+	#endif
+	menu.exec(QCursor::pos());
+	#ifdef DEBUG
+	qDebug()<<"qwtPlot Poistion ="<<qwtVan->geometry().y()<<qwtVan->geometry().y()+qwtVan->geometry().height()
+				      <<qwtPlot->geometry().y()<<qwtPlot->geometry().height()+qwtPlot->geometry().y()
+				      <<QCursor::pos()<<this->mapFromGlobal(QCursor::pos());
+	#endif
+}
+void CashFlowPlot::exportPNG()
+{	QString fileName;
+ 
+        fileName = QFileDialog::getSaveFileName(this, tr("Nome file da esportare"),  recentExportPath,"Graphic files (*.png  )");
+	QFileInfo fileInfo(fileName);
+        recentExportPath = fileInfo.absoluteDir().absolutePath();
+
+    if ( !fileName.isEmpty() )
+    {
+	 fileName = MyMath::checkFormat(fileName,"png");
+	QwtPlotPrintFilter filter;
+    	int options = QwtPlotPrintFilter::PrintAll;
+               options  = ~QwtPlotPrintFilter::PrintBackground;
+               options |= QwtPlotPrintFilter::PrintFrameWithScales;
+ 	 
+	filter.setOptions(options);
+	//QImage pixmap(800,600,QImage::Format_RGB32);
+// 	QPixmap pixmap= QPixmap::grabWidget(p);
+	QPixmap pixmap(1024,800);
+	pixmap.fill(Qt::white);
+      	
+	if (cursorPos.y()<=qwtVan->geometry().y()+qwtVan->geometry().height())
+        	qwtVan->print(pixmap,filter );
+	if (cursorPos.y()>qwtVan->geometry().y()+qwtVan->geometry().height())
+		qwtPlot->print(pixmap,filter );
+
+	 if ( pixmap.save(fileName, "png" ))
+		qDebug()<<"Ok";
+  	 else
+		qDebug()<<"Error";
+	 
+    
+}
+}
+void CashFlowPlot::moved(const QPoint &pos)
+{
+//	qDebug()<<pos;
+	picker->rubberBand();
+}
+ QwtPlot* CashFlowPlot::vanDiagram()
+{
+	return qwtVan;
+}
+QwtPlot* CashFlowPlot::rawDiagram()
+{
+	return qwtPlot;
+}
+void CashFlowPlot::alignScales()
+{
+    // The code below shows how to align the scales to
+    // the canvas frame, but is also a good example demonstrating
+    // why the spreaded API needs polishing.
+
+    
+    
+    qwtVan->canvas()->setFrameStyle(QFrame::Box | QFrame::Plain );
+    qwtVan->canvas()->setLineWidth(1);
+    qwtPlot->canvas()->setFrameStyle(QFrame::Box | QFrame::Plain );
+    qwtPlot->canvas()->setLineWidth(1);
+
+    
+for ( int i = 0; i < qwtVan->QwtPlot::axisCnt; i++ )
+    {
+         QwtScaleWidget *scaleWidget = (QwtScaleWidget *)(qwtVan->axisWidget(i));
+        if ( scaleWidget )
+            scaleWidget->setMargin(0);
+
+         QwtScaleDraw *scaleDraw = (QwtScaleDraw *)qwtVan->axisScaleDraw(i);
+        if ( scaleDraw )
+           scaleDraw->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+    }
+for ( int i = 0; i < qwtPlot->QwtPlot::axisCnt; i++ )
+    {
+         QwtScaleWidget *scaleWidget = (QwtScaleWidget *)(qwtPlot->axisWidget(i));
+        if ( scaleWidget )
+            scaleWidget->setMargin(0);
+
+         QwtScaleDraw *scaleDraw = (QwtScaleDraw *)qwtPlot->axisScaleDraw(i);
+        if ( scaleDraw )
+           scaleDraw->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+    }
+}
+
+CashFlowPlot::~CashFlowPlot()
+{
+}
+void CashFlowPlot::drawRataNPV()
+{
+	QwtArray<QwtDoubleInterval> intervals(rataNPV.size());
+	QwtArray<double> values(rataNPV.size());
+	double pos=0;
+	if (drawInterestFlag){
+		for(int i=0;i<(int)rataNPV.size();i++)
+		{
+			
+				intervals[i] = QwtDoubleInterval(0.5+pos,pos+1);
+			
+			pos += 1;
+			values[i] = rataNPV.at(i).y();
+		}
+		rataNPVPlot->setData(QwtIntervalData(intervals, values));
+	}else
+		rataNPVPlot->setData(QwtIntervalData());
+
+//     rawPlot->setData(x,y,size);
+//       vanPlot->setData(npv);
+      qwtVan->replot();
+}
+void CashFlowPlot::drawRata()
+{
+	QwtArray<QwtDoubleInterval> intervals(rata.size());
+	QwtArray<double> values(rata.size());
+	double pos=0;
+	if (drawInterestFlag){
+		for(int i=0;i<(int)rata.size();i++)
+		{
+			
+				intervals[i] = QwtDoubleInterval(0.5+pos,pos+1);
+			
+			pos += 1;
+			values[i] = rata.at(i).y();
+		}
+		rataPlot->setData(QwtIntervalData(intervals, values));
+	}else
+		rataPlot->setData(QwtIntervalData());
+
+//     rawPlot->setData(x,y,size);
+//       vanPlot->setData(npv);
+      qwtPlot->replot();
+}
+void CashFlowPlot::drawInterestNPV()
+{
+	QwtArray<QwtDoubleInterval> intervals(interestNPV.size());
+	QwtArray<double> values(interestNPV.size());
+	double pos=0;
+	if (drawInterestFlag){
+		for(int i=0;i<(int)interestNPV.size();i++)
+		{
+			
+				intervals[i] = QwtDoubleInterval(0.5+pos,pos+1);
+			
+			pos += 1;
+			values[i] = interestNPV.at(i).y();
+		}
+		interestNPVPlot->setData(QwtIntervalData(intervals, values));
+	}else
+		interestNPVPlot->setData(QwtIntervalData());
+
+//     rawPlot->setData(x,y,size);
+//       vanPlot->setData(npv);
+      qwtVan->replot();
+}
+void CashFlowPlot::drawNPV()
+{
+	QwtArray<QwtDoubleInterval> intervals(npv.size());
+	QwtArray<double> values(npv.size());
+	double pos=0;
+	for(int i=0;i<(int)npv.size();i++)
+	{
+		if (drawInterestFlag)
+			intervals[i] = QwtDoubleInterval(pos, pos + 0.5);
+		else
+			intervals[i] = QwtDoubleInterval(pos, pos + 1);
+		pos += 1;
+		values[i] = npv.at(i).y();
+	}
+	vanPlot->setData(QwtIntervalData(intervals, values));
+
+// 	vanData = npv;
+//     rawPlot->setData(x,y,size);
+//       vanPlot->setData(npv);
+      qwtVan->replot();
+qDebug()<<"CASH drawflowcash end";
+ updateTable();
+}
+void CashFlowPlot::drawFlowCash()
+{
+	
+	QwtArray<QwtDoubleInterval> intervals(rawcash.size());
+	QwtArray<double> values(rawcash.size());
+	double pos=0;
+	for(int i=0;i<(int)rawcash.size();i++)
+	{
+	
+		if (drawInterestFlag)
+			intervals[i] = QwtDoubleInterval(pos, pos + 0.5);
+		else
+			intervals[i] = QwtDoubleInterval(pos, pos + 1);
+		pos += 1;
+		values[i] = rawcash.at(i).y();
+	}
+	rawPlot->setData(QwtIntervalData(intervals, values));
+
+// 	flowCashData = data;
+//  	rawPlot->setData(data);
+ 	qwtPlot->replot();
+ 	updateTable();
+	
+}
+void CashFlowPlot::drawInterest()
+{
+	QwtArray<QwtDoubleInterval> intervals(interest.size());
+	QwtArray<double> values(interest.size());
+	double pos=0;
+	if (drawInterestFlag){
+		for(int i=0;i<(int)interest.size();i++)
+		{
+			
+				intervals[i] = QwtDoubleInterval(0.5+pos, pos + 1);
+			
+			pos += 1;
+			values[i] = interest.at(i).y();
+		}
+		interestPlot->setData(QwtIntervalData(intervals, values));
+	}
+	else
+		interestPlot->setData(QwtIntervalData());
+// 	interestData = data;
+		
+//  	rawPlot->setData(data);
+ 	qwtPlot->replot();
+}
+
+void CashFlowPlot::updateGrid()
+{
+// 	qDebug()<<"Sono in grid";
+	if (gridSettings->getAsseX()==Qt::Checked) {
+// 	qDebug()<<"Griglia vera";
+	 	grid->enableXMin(true);
+   	 	grid->enableX(true);
+    	 	grid->enableXMin(true);
+
+		grid2->enableXMin(true);
+   	 	grid2->enableX(true);
+    	 	grid2->enableXMin(true);
+	} 
+	else	
+	{
+		grid->enableXMin(false);
+   	 	grid->enableX(false);
+    	 	grid->enableXMin(false);
+		
+		grid2->enableXMin(false);
+   	 	grid2->enableX(false);
+    	 	grid2->enableXMin(false);
+	}
+	if (gridSettings->getAsseY()==Qt::Checked) {
+	 	grid->enableYMin(true);
+   	 	grid->enableY(true);
+    	 	grid->enableYMin(true);
+
+		grid2->enableYMin(true);
+   	 	grid2->enableY(true);
+    	 	grid2->enableYMin(true);
+	}
+	else	
+	{
+		grid->enableYMin(false);
+   	 	grid->enableY(false);
+    	 	grid->enableYMin(false);
+
+		grid2->enableYMin(false);
+   	 	grid2->enableY(false);
+    	 	grid2->enableYMin(false);
+	}
+qwtPlot->replot();
+qwtVan->replot();
+}
+void CashFlowPlot::updateTable()
+{
+// 	QString s;
+	s="";
+	QString preamble = "<table border=1 width=\"100%\" cellspacing=\"0\" cellpadding=\"3\" bordercolor=\"#980000\" >";
+	QString header   = "<tr  bgcolor=\"#C89800\"><td >" + tr("Anno") + "</td><td >" + tr("Incentivo")    + "</td><td>" ;
+
+	if (eco.regime==SSPIT)
+	header+= tr("SSP") +"</td><td>";
+	if (eco.regime==Vendita)
+	header+= tr("Vendita En.") +"</td><td>";
+
+	
+
+	header +=   tr("Costi di sistema(*)") + "</td><td>" + tr("Interessi") + "</td><td>" + tr("Rata") + "</td><td>" + tr("Rata VAN") + "</td><td>" + tr("Ammort.")+"</td><td>" + tr("Flusso Cassa") + "</td><td>" + tr("Flusso Cassa VAN") + "</td></tr>";
+	s+=preamble + header;
+// 	qDebug()<<"Cash Flow size"<<flowCashData.size();
+ 	sanityCheck();
+	bool foundRoi = false;
+	for(int i=0;i< rawcash.size();i++) {
+		if ((npv.at(i).y()>0) && (!foundRoi))
+		{
+			s+="<tr bgcolor=\"#52d26b\"><td>" + QString("%1").arg(i) + "</td>";//ROI
+			foundRoi = true;
+		}
+		else
+			s+="<tr><td>" + QString("%1").arg(i) + "</td>";
+
+// 		s+="<td>" + QString("%L1").arg(produced.at(i).y(),0,'f',3) + "</td>";
+// 		s+="<td>" + QString("%L1").arg(consumed.at(i).y(),0,'f',3) + "</td>";
+		s+="<td>" + QString("%L1").arg(bonus.at(i).y(),0,'f',2) + "</td>";
+
+		if ((eco.regime==SSPIT) || (eco.regime==Vendita))
+			s+="<td>" + QString("%L1").arg(cs.at(i).y(),0,'f',3) + "</td>";
+		s+="<td>" + QString("%L1").arg(yearlyCostNPV.at(i).y(),0,'f',2) + "</td>";
+		s+="<td>" + QString("%L1").arg(interest.at(i).y(),0,'f',2) + "</td>";
+		s+="<td>" + QString("%L1").arg(rata.at(i).y(),0,'f',2) + "</td>";
+		s+="<td>" + QString("%L1").arg(rataNPV.at(i).y(),0,'f',2) + "</td>";
+		s+="<td>" + QString("%L1").arg(amm,0,'f',2) + "</td>";
+		s+="<td>" + QString("%L1").arg(rawcash.at(i).y(),0,'f',2) + "</td>";
+		s+="<td>" + QString("%L1").arg(npv.at(i).y(),0,'f',2) + "</td></tr>";
+	}
+	s+="</table>";
+	s+=tr("<p>(*) Costi Annuali Attualizzati = Costi di manutenzione + Tasse + Affitti + Assicurazione + Altri costi</p>");
+	textEdit->setHtml(s);
+
+}
+void CashFlowPlot::sanityCheck()
+{
+	if (consumed.size()<rawcash.size())
+		consumed.insert(consumed.size(),rawcash.size()-consumed.size(),QPointF(0,0));
+
+	if (produced.size()<rawcash.size())
+		produced.insert(produced.size(),rawcash.size()-produced.size(),QPointF(0,0));
+
+	if (bonus.size()<rawcash.size())
+		bonus.insert(bonus.size(),rawcash.size()-bonus.size(),QPointF(0,0));
+	
+	if (cs.size()<rawcash.size())
+		cs.insert(cs.size(),rawcash.size()-cs.size(),QPointF(0,0));
+}
+void CashFlowPlot::setConsumed(const QPolygonF &a)
+{
+	consumed = a;
+	qDebug()<<"CASHFLOW consumed"<<a;
+}
+void CashFlowPlot::setProduced(const QPolygonF &a)
+{
+	produced = a;
+	qDebug()<<"CASHFLOW produced"<<a;
+}
+void CashFlowPlot::setBonus(const QPolygonF &a)
+{
+	bonus = a;
+	qDebug()<<"CASHFLOW bonus"<<a;
+}
+void CashFlowPlot::setCS(const QPolygonF &a)
+{
+	cs = a;
+}
+void CashFlowPlot::setRawCash(const QPolygonF &a)
+{
+	rawcash = a;
+}
+void CashFlowPlot::setInterest(const QPolygonF &a)
+{
+	interest = a;
+}
+void CashFlowPlot::setInterestNPV(const QPolygonF &a)
+{
+	interestNPV = a;
+}
+void CashFlowPlot::setNPV(const QPolygonF &a)
+{
+	npv = a;
+}
+void CashFlowPlot::setRataNPV(const QPolygonF &a)
+{
+	rataNPV = a;
+}
+void CashFlowPlot::setRata(const QPolygonF &a)
+{
+	rata = a;
+}
+void CashFlowPlot::setEcoParameters(const ecopara e)
+{
+	eco = e;
+}
+QString CashFlowPlot::getTable()
+{
+	return s;
+}
+void CashFlowPlot::setAmmNPV(const QPolygonF& a)
+{
+	ammNPV = a;
+}
+void CashFlowPlot::setAmm(double a)
+{	
+	amm = a;
+}
+void CashFlowPlot::setYearlyCost(const QPolygonF& a)
+{	
+	yearlyCost = a;
+}
+void CashFlowPlot::setYearlyCostNPV(const QPolygonF& a)
+{	
+	yearlyCostNPV = a;
+}
+void CashFlowPlot::settings()
+{
+	#ifdef DEBUG
+	qDebug()<<"I am here";	
+	#endif
+// 	Settings s2;
+// 	int a;
+	if (cursorPos.y()<=qwtPlot->geometry().y()+qwtPlot->geometry().height()){
+	qDebug()<<"updateset";	
+		if (!set->isVisible()) 	 
+			set->show();
+	}
+	 if (cursorPos.y()>qwtPlot->geometry().y()+qwtPlot->geometry().height()){
+	 qDebug()<<"updatesetVAN";	
+		if (!setVan->isVisible()) 	 
+			setVan->show();
+	}
+}
+void CashFlowPlot::updateSet()
+{
+	qDebug()<<"UPDATESET";
+	QString str;
+	QwtText tlabel;
+	tlabel.setFont(QFont("Times",13,QFont::Normal));
+	 
+  	tlabel.setText(set->getTitle());
+	qwtPlot->setTitle(tlabel);
+	qwtPlot->setAxisTitle(QwtPlot::yLeft,set->getAxisY());
+	qwtPlot->setAxisTitle(QwtPlot::xBottom,set->getAxisX());
+	 
+		
+
+	 
+}
+void CashFlowPlot::updateSetVan()
+{
+	qDebug()<<"UPDATESETVAN";
+	QString str;
+	QwtText tlabel;
+	tlabel.setFont(QFont("Times",13,QFont::Normal));
+		
+  	tlabel.setText(setVan->getTitle());
+	qwtVan->setTitle(setVan->getTitle());
+	qwtVan->setAxisTitle(QwtPlot::yLeft,setVan->getAxisY());
+	qwtVan->setAxisTitle(QwtPlot::xBottom,setVan->getAxisX());
+}

@@ -1,0 +1,158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>Google Maps JavaScript API Example</title>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&key=AIzaSyDE4VY2IpPvs3uezMNW9-UVRD9BrluOD88"
+      type="text/javascript"></script>
+
+
+        <script type="text/javascript">
+
+        var map;
+        var geocoder;
+        var Lat,Lng;
+        var addressDetails;
+        var LatInt = new String();
+        var LatDec = new String();
+        la = -999.0000000000002;
+        lo = -999.0000000000002;
+        Name = "";
+
+
+        function initialize()
+        {
+
+                  {
+
+                                 var mapOptions = {
+                                    zoom: 4,
+
+                                    panControl: false,
+                                    zoomControl: false,
+                                    scaleControl: true,
+                                    mapTypeId: google.maps.MapTypeId.ROADMAP
+                                  }
+                                 map =  new google.maps.Map(document.getElementById("map"),mapOptions);
+                                 geocoder = new google.maps.Geocoder();
+                                 map.setCenter( new google.maps.LatLng(0,0));
+                                 google.maps.event.addListener(map,"click",function(event){
+                                getAddress(event.latLng);
+                                });
+
+                  }
+
+        }
+
+        function getAddress(latlng) {
+
+                 if (latlng != null) {
+
+                   address = latlng;
+
+                 geocoder.geocode(latlng, showAddress);
+
+                }
+
+        }
+        function getName(){
+                 return addressDetails;
+                //return city;
+        }
+        function getStreetName(){
+                return street;
+        }
+        function getStateName(){
+                return country;
+        }
+        function getLat(){
+                return la;
+        }
+        function getLng(){
+                return lo;
+        }
+        function getlatInt(){
+         return LatInt;
+        }
+        function getlatDec(){
+         return LatDec;
+        }
+
+        function getlngInt(){
+         return LonInt;
+        }
+        function getlngDec(){
+         return LonDec;
+        }
+        function showAddress(response) {
+                map.clearOverlays();
+                if (!response || response.Status.code != 200) {
+                alert("GoogleMap error:" + response.Status.code);
+                } else {
+                                        place = response.Placemark[0];
+                                        point = new GLatLng(place.Point.coordinates[1],place.Point.coordinates[0]);
+                                        marker = new GMarker(point);
+                                        map.addOverlay(marker);
+
+
+
+                                                                                var temp = new Array();
+                                                                                var temp2 = new Array();
+                                                                                var b = new String(place.Point.coordinates[1]);
+                                                                                var c = new String(place.Point.coordinates[0]);
+                                                                                temp = b.split('.');
+                                                                                temp2 = c.split('.');
+                                                                                LatInt = temp[0];
+                                                                                LatDec = temp[1];
+                                                                                LonInt = temp2[0];
+                                                                                LonDec = temp2[1];
+
+                                        country=	place.AddressDetails.Country.CountryName;
+                                        marker.openInfoWindowHtml(
+                                                '<b>Lat.,Long.:</b>' + place.Point.coordinates[1] + "," + place.Point.coordinates[0] + '<br>' +
+                                                '<b>Address:</b>' + place.address + '<br>' +
+                                                '<b>Country code:</b> ' + country );
+
+                                        la = (place.Point.coordinates[1]);
+                                        lo = (place.Point.coordinates[0]);
+
+
+
+
+
+                                        addressDetails = place.address;
+                                        placeAddress = place.address;
+
+                                        Name= place.AddressDetails.Country.AdministrativeArea.Locality;
+
+
+                }
+}
+function clearO()
+{
+    map.clearOverlays();
+}
+        function Open(x,y)
+        {
+
+        var  point = new GLatLng(x,y);
+        var bounds = new GLatLngBounds;
+          map.clearOverlays();
+          map.setCenter(point,13 );
+          marker = new GMarker(point);
+          bounds.extend(marker.getPoint());
+          map.addOverlay(marker);
+          map.setCenter(bounds.getCenter());
+
+        }
+
+    </script>
+
+
+  </head>
+  <body onload="initialize()"    topmargin="0" leftmargin="0">
+    <div id="map" style="width:490px; height: 490px"> </div>
+
+  </body>
+</html>

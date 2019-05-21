@@ -1,0 +1,1396 @@
+#include "ask.h"
+#include "doubledelegate.h"
+#include <qwt_interval_data.h>
+#include "histogram_item.h"
+#include "load.h"
+#include <QDebug>
+#include <qwt_plot_curve.h>
+#include "mymath.h"
+#include <qwt_scale_draw.h>
+#include <qwt_scale_widget.h>
+#include <qwt_painter.h>
+#include <qwt_plot_grid.h>
+#include <qwt_plot_canvas.h>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QDate>
+#define pi 3.1415926535897900000
+
+Load::Load(QWidget* parent) :  QWidget(parent)
+{
+	setupUi(this);
+ 	dFactor->setEnabled(false);
+	restDay.resize(0);
+	saturdayPercent = 0;
+	sundayPercent   = 0;
+	doNotAskAgain = false;
+	onlyCurrentMonth =false;
+	
+// 	setWindowIcon(QIcon(":/images/)
+	monthlyProfile = Uniform;
+	 
+	year 	       = 2010;
+	valueDirty     = false;
+	monthsList = MyMath::monthsList();
+	fileCustom = "";
+	recentSave = QDir::homePath();
+	recentDirCarichi = QDir::homePath();
+  	setDefault();
+	
+	typicalProfile<<3<<2<<2<<2<<1<<1<<2<<4<<4.2<<4.4<<4.2<<4.2<<4.4<<4.4<<4.8<<4.8<<4.6<<4.4<<5<<7<<8<<7.6<<6<<5;
+	typicalCommercial<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428;
+
+	typicalIndustrial<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<8.4<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428<<1.1428571428571428;
+
+
+	 
+
+
+	QVector<int> d(12);
+	
+	tableMonthly->setItemDelegate(new DoubleDelegate(MyMath::serie(0,12),100000000,0,2));
+	tableHourly->setItemDelegate(new DoubleDelegate(MyMath::serie(0,24),100,0));
+	connect(pushOK,SIGNAL(clicked()),SLOT(notify()));
+
+	 connect(lineAnnui,SIGNAL(editingFinished()),SLOT(update()));
+	connect(tableMonthly,SIGNAL(itemChanged(QTableWidgetItem*)),SLOT(updateMonthlyItems()));
+	connect(tableMonthly,SIGNAL(itemChanged(QTableWidgetItem*)),SLOT(checkData(QTableWidgetItem*)));
+  	connect(tableMonthly,SIGNAL(itemClicked(QTableWidgetItem*)),SLOT(updateHours(QTableWidgetItem* )));
+
+	connect(tableHourly,SIGNAL(itemChanged(QTableWidgetItem*)),SLOT(checkHourlyData(QTableWidgetItem*)));
+	connect(tableHourly,SIGNAL(itemChanged(QTableWidgetItem*)),SLOT(updateHourlyItems()));
+	connect(comboMonthly,SIGNAL(currentIndexChanged(int)),SLOT(setMonthlyProfile(int)));
+ 	connect(dFactor,SIGNAL(valueChanged(double)),SLOT(updateMonths()));
+	connect(comboHourly,SIGNAL(activated(int)),SLOT(setHourlyProfile(int)));
+	connect(buttonSave,SIGNAL(clicked()),SLOT(save()));
+	connect(buttonSaveAs,SIGNAL(clicked()),SLOT(saveAs()));
+	connect(buttonCarica,SIGNAL(clicked()),SLOT(load()));
+	connect(checkCurrentMonths,SIGNAL(clicked()),SLOT(settings()));
+
+	connect(dQuotaSabato,SIGNAL(valueChanged(double)),SLOT(setSatPercent(double)));
+	connect(dQuotaDomenica,SIGNAL(valueChanged(double)),SLOT(setSunPercent(double)));
+	connect(comboChiusura,SIGNAL(currentIndexChanged(int)),SLOT(setRestDay(int)));
+ 
+	w1 = QObject::tr("Attenzione: dati orari inconsistenti! Totale diverso 100%");
+	w2 = QObject::tr("Attenzione: dati mensili inconsistenti! Totale diverso di 100%");
+
+// 	tableMonthly->setCurrentCell(0,0);
+
+	qwtHourly->enableAxis(QwtPlot::yLeft,true);
+	qwtHourly->setCanvasBackground(QColor(Qt::white));
+
+	qwtMonthly->enableAxis(QwtPlot::yLeft,true);
+	qwtMonthly->setCanvasBackground(QColor(Qt::white));
+
+	qwtWeekly->enableAxis(QwtPlot::yLeft,true);
+	qwtWeekly->setCanvasBackground(QColor(Qt::white));
+	
+// 	plot = new QwtPlotCurve();
+
+	QwtText tWlabel(tr("Consumo nella settimana - Mese") + MyMath::months(1));
+	tWlabel.setFont(QFont("Times",14,QFont::Normal));
+
+	plotW = new HistogramItem();
+	plotW->attach(qwtWeekly);
+	plotW->setColor(Qt::darkYellow);
+	
+	qwtWeekly->setTitle(tWlabel);
+	
+
+	plot = new HistogramItem();
+	plot->attach(qwtHourly);
+	plot->setColor(Qt::darkYellow);
+
+	plotM = new HistogramItem();
+	plotM->attach(qwtMonthly);
+	plotM->setColor(Qt::darkYellow);
+	
+// 	plot->setStyle(QwtPlotCurve::Sticks);
+	
+	tableMonthly->setCurrentCell(0,0); //default is jan
+	
+	QwtText tMlabel(tr("Consumo totale mensile "));
+	tMlabel.setFont(QFont("Times",14,QFont::Normal));
+
+  	QwtText tlabel(tr("Consumo orario - Mese di ") + MyMath::months(1));
+  	tlabel.setFont(QFont("Times",14,QFont::Normal));
+	QwtText xlabel(tr("Ora"));
+	QwtText xMlabel(tr("Mese"));	
+	QwtText ylabel(tr("[kWh]"));
+	ylabel.setFont(QFont("Times",12,QFont::Normal));
+	xlabel.setFont(QFont("Times",12,QFont::Normal));
+	xMlabel.setFont(QFont("Times",12,QFont::Normal));
+
+	QwtText xGlabel(tr("Giorno"));
+	xGlabel.setFont(QFont("Times",12,QFont::Normal));
+
+
+	qwtHourly->setAxisTitle(QwtPlot::xBottom,xlabel);
+        qwtHourly->setAxisTitle(QwtPlot::yLeft,ylabel);
+  	qwtHourly->setTitle(tlabel);
+	qwtHourly->setAxisAutoScale(QwtPlot::yLeft);
+	qwtHourly->setAxisScale(QwtPlot::xBottom,0,23.5);
+
+	qwtMonthly->setAxisTitle(QwtPlot::xBottom,xMlabel);
+        qwtMonthly->setAxisTitle(QwtPlot::yLeft,ylabel);
+  	qwtMonthly->setTitle(tMlabel);
+	qwtMonthly->setAxisScale(QwtPlot::xBottom,1,12,1);
+	qwtMonthly->setAxisAutoScale(QwtPlot::yLeft);
+	 
+
+	qwtWeekly->setAxisTitle(QwtPlot::yLeft,ylabel);
+	qwtWeekly->setAxisTitle(QwtPlot::xBottom,xGlabel);
+	qwtWeekly->setAxisAutoScale(QwtPlot::yLeft);
+	qwtWeekly->setAxisScale(QwtPlot::xBottom,0.5,7.5);
+	alignScales();
+
+	someError = false;
+	updateHourlyPlot(0);
+	doNotCheck = false;
+	doNotUpdate = false;
+	
+	lineAnnui->setReadOnly(false);
+	lineAnnui->setValidator(new QDoubleValidator(lineAnnui));
+}
+void Load::setRestDay(int i)
+/*restdays from 0 to 6*/
+{
+	int m =tableMonthly->currentItem()->column();/*current month*/
+	if (i==0)
+		restDay[m] = 7;
+	if (i==1)
+		restDay[m] = 6;
+	if (i>1)
+		restDay[m] = i-2;
+	updateHours(tableMonthly->currentItem());
+}
+void Load::setSunPercent(double v)
+{
+	int m =tableMonthly->currentItem()->column();/*current month*/
+	sundayPercent = v;
+	quotaSun[m] = v;
+	updateHours(tableMonthly->currentItem());
+}
+void Load::setSatPercent(double v)
+{
+	int m =tableMonthly->currentItem()->column();/*current month*/
+	saturdayPercent = v;
+	quotaSat[m] = v;
+	updateHours(tableMonthly->currentItem());
+}
+void Load::settings()
+{
+// 	Ask a;
+// 	 {
+// 		if (a.exec()) {
+		
+			onlyCurrentMonth = checkCurrentMonths->isChecked();
+			
+			/*
+		}
+	}*/
+}
+bool Load::isError()
+{
+	return someError;
+}
+// void Load::setCurrentHourlyProfile(int i)
+// {
+// 	hourlyProfile = i;
+// }
+// void Load::setCurrentDailyProfile(int i)
+// {
+// 	dailyProfile = i;
+// }
+// void Load::setCurrentMonthlyProfile(int i)
+// {
+// 	monthlyProfile = i;
+// }
+// void Load::viewHours(QTableWidgetItem* current)
+// {
+// 	double c;
+//         double sum,v;
+// 	int col,hour;
+// 	col = tableMonthly->column(current);
+// 	c   = mLoadValue[col]; //current monthly value
+// 	hour= current->row();
+// 	doNotCheckHours = true;
+// 	for(int i=0;i<24;i++){
+// 				
+// 				v = hLoad[i+24*col];
+// 				tableHourly->item(i,0)->setText(QString::number(v));
+// 				tableHourly->item(i,1)->setText(QString::number(v*100.0/c));
+// 				}
+// 	doNotCheckHours = false;	
+//  
+// 	 
+// }
+void Load::storeItem(QTableWidgetItem* current)
+{
+	currentItemValue = current->text().toDouble();
+}
+void Load::checkHourlyData(QTableWidgetItem* current)
+{
+	double value,valuePercent,total,totalSat,totalSun;
+	double p,sum,sum2;
+	int month,hour;
+	QVector<double> res;
+
+	month = tableMonthly->currentItem()->column(); // the value is mLoadValue[month];
+// 	if (month<0)
+// 		month = 0;
+
+	hour= current->row();
+// 	value 		= tableHourly->item(hour,1)->text().toDouble();
+	valuePercent	= QLocale().toDouble(tableHourly->item(hour,0)->text());
+	
+// 	current->text().toDouble();
+	sum = 0;
+	sum2=0;
+	res = getMonthlyLoad(month);
+	total = res.at(0);/*normal days*/
+	gNormLoad[month] = res.at(0);
+	gSatLoad[month ] = res.at(1);/*The same profile as in normal days */
+	gSunLoad[month ] = res.at(2);/*The same profile as in normal days */
+	if (month<12 && month>=0){
+		
+		if (!doNotCheckHours) {
+//  			qDebug()<<"LOAD check hourly data"<<month<<hour<<value<<mLoadValue[month]<<doNotCheckHours;
+			doNotCheckHours = true;
+		 	hLoad[month*24 + hour] 	   = valuePercent*total/100;
+			hLoadPercent[month*24+hour] = valuePercent;
+			
+			if (mLoadValue[month]<0.0000002)
+				tableHourly->item(hour,1)->setText(QString::number(0));
+			else
+				tableHourly->item(hour,1)->setText(QString::number(hLoad[month*24 + hour]));
+
+			for(int i=0; i<24;i++) {
+				sum+= hLoad.at(i + month*24);
+// 				sum2+=tableHourly->item(i,1)->text().toDouble();
+				sum2+=hLoadPercent.at(i + month*24);
+//   				qDebug()<<"LOAD Hourly sum "<<month<<total<<sum<<sum2<<hLoad.at(i+ month*24)<<hLoadPercent[month*24+hour]<<valuePercent<<mLoadValue[month]<<(sum>mLoadValue[month]);
+				
+				
+			}
+
+		
+			if ( (sum2-100)>0.0002 && total>0.0000000002) {
+					 
+					labelWarningHours->setText("<font color=\'red\'>" + w1 +"</font>");
+					someError |= true;
+	// 				current->setBackground(QBrush(QColor("red")));
+// 					qDebug()<<"LOAD Hourly ----------------------------"<<total<<sum2-100;
+					}
+				else
+					{
+					labelWarningHours->setText("");
+					someError |= false;
+	// 				current->setBackground(QBrush());
+					}
+
+//  		qDebug()<<"LOAD Hourly ----------------------------"<<total<<sum2;
+  		labelTotal->setText(QString::number(sum,'f',2));
+  		labelTotalPercent->setText(QString::number(sum2,'f',2));
+  		comboHourly->setCurrentIndex(hCustom);	
+		doNotCheckHours = false;
+	updateHourlyPlot(month); 
+		}
+	}
+}
+void Load::checkData(QTableWidgetItem* current)
+/* Check data on the monthly values table */
+{
+if (!doNotCheck) {
+	double c,a,total;
+	double p,sum,sum2;
+	int col;
+	col = tableMonthly->column(current);
+	c = QLocale().toDouble(current->text());
+	sum = 0;
+	sum2=0;
+// 	a = annuiDSpin->value();
+	
+//   	qDebug()<<"LOAD check data---- "<<col<<mLoadValue.at(col);
+	
+	doNotCheck = true;
+	mLoadValue[col] = c;
+	total = MyMath::cumSum(mLoadValue);
+// 	tableMonthly->item(1,col)->setText(QString::number(c*100/a,'f',2));
+		for(int i=0; i<12;i++) {
+			sum+= mLoadValue.at(i);
+// 			sum2+= mLoadValue.at(i);
+   			qDebug()<<"LOAD check data sum "<<sum<<i<<mLoadValue.at(i);
+			
+			tableMonthly->item(0,i)->setText(QString("%L1").arg(mLoadValue[i]));
+ 			if (total>=0.00000002)
+			 
+				
+				tableMonthly->item(1,i)->setText(QString("%L1").arg(mLoadValue[i]*100/total,0,'f',2));
+			else
+					tableMonthly->item(1,i)->setText(QString::number(0));
+			
+			/* 
+			if (fabs(sum)>0.00001){
+				labelWarning->setText("<font color=\'red\'>" + w2 + "</font>");
+				current->setBackground(QBrush(QColor("red")));
+				someError |= true;
+			}
+			else
+				{
+				labelWarning->setText("");
+				tableMonthly->item(0,i)->setBackground(QBrush());
+				someError |= false;
+				}
+			}*/
+			
+		}
+// 	doNotCheck = true;
+	tableMonthly->item(0,12)->setText(QString::number(sum));
+// 	doNotUpdate = true;
+// 	annuiDSpin->setValue(sum);
+	lineAnnui->setText(QString::number(sum));
+	updateMonthlyPlot();
+// 	doNotUpdate = false;
+	if (total>0.0000002)
+	tableMonthly->item(1,12)->setText(QString("%L1").arg(sum*100/total,0,'f',2));
+	else
+	tableMonthly->item(1,12)->setText(QString::number(0));
+	comboMonthly->setCurrentIndex(Custom);
+	doNotCheck = false;
+	}
+}
+
+void Load::updateHourlyItems()
+{
+	
+	tableHourly->resizeColumnsToContents();
+	
+}
+void Load::updateMonthlyItems()
+{
+	
+	tableMonthly->resizeColumnsToContents();
+	
+}
+
+void Load::update()
+{
+// 	if (comboMonthly->currentIndex()!=Custom)
+		
+	 qDebug()<<"LOAD UPDATE-----------------------------";
+	updateMonths();
+   	updateHours(tableMonthly->currentItem());
+	 
+}
+QVector<double> Load::getMonthlyLoad(int month)
+{
+	/* Compute the load of week days different form weekends and closing days */
+	/* o(0) = load for normal days; o(1)=load for sat; o(2) = load of sunday*/
+	/* month =0-11*/
+	QVector<int> numOfWeeksAndRestDays;
+	QVector<double> o;
+	double numF,numSat,numSun;
+
+	/*NO REST DAY?*/
+	if (restDay[month]==7){
+		numF =  mLoadValue[month]*(1-(quotaSat[month])/100);/*normal days*/
+		numSun = numF;
+		numOfWeeksAndRestDays = MyMath::numOfWeekendsAndRests(QDate(year,month+1,1),0);//no rest day/
+	}
+	else
+	{
+		numF = mLoadValue[month]*(1-(quotaSat[month]+quotaSun[month])/100);/*normal days*/
+		numSun = mLoadValue[month]*( quotaSun[month])/100;/*weekend sunday or closing*/
+		numOfWeeksAndRestDays = MyMath::numOfWeekendsAndRests(QDate(year,month+1,1),restDay[month]+1);
+	}
+
+	 numSat = mLoadValue[month]*( quotaSat[month]  )/100;/*weekend saturday*/
+ 	
+// 	o << numF/(MyMath::monthEnd(month+1,year) - numOfWeeksAndRestDays.at(0) - numOfWeeksAndRestDays.at(1) - numOfWeeksAndRestDays.at(2)) <<
+// 	     numSat/(numOfWeeksAndRestDays.at(0)  )<<
+// 	     numSun/(numOfWeeksAndRestDays.at(1)  );
+
+	/* Closing days are considered as sundays and viceversa */
+	int numOfDays = MyMath::monthEnd(month+1,year);
+	
+	o << numF/( numOfDays - numOfWeeksAndRestDays.at(0) - numOfWeeksAndRestDays.at(2)) <<
+	     numSat/(numOfWeeksAndRestDays.at(0)  );
+
+	if (restDay[month]==7)
+	     o<<numSun/(numOfDays - numOfWeeksAndRestDays.at(0) - numOfWeeksAndRestDays.at(2) );
+	else
+	     o<<numSun/(numOfWeeksAndRestDays.at(2)  );
+
+//   	qDebug()<<"LOAD getMonthly Load"<<restDay[month]<<numF<<numSun<<numSat<<numOfWeeksAndRestDays.at(0)<<numOfWeeksAndRestDays.at(1)<<numOfWeeksAndRestDays.at(2)<<month;
+	return o; 
+}
+void Load::updateHours(QTableWidgetItem* c)
+{
+	// Pick the current month value
+	double v,y;
+	QVector<double> res;
+	 
+	int m = c->column();
+// 	int mtableMonthly->currentColumn();
+//   	qDebug()<<"LOAD UpdateHours "<<m<<hourlyProfile[m];
+	if (m==-1 || m>11)
+		m=0;//Jan as defauls
+	
+	switch (hourlyProfile[m]){
+		case hUniform:
+		labelWarningHours->setText("");
+ 		
+		doNotCheckHours = true;
+		res = getMonthlyLoad(m);	
+		y    = res.at(0);
+		gNormLoad[m ] = res.at(0);
+		gSatLoad[m  ] = res.at(1);/*The same profile as in normal days */
+		gSunLoad[m  ] = res.at(2);/*The same profile as in normal days */
+		qDebug()<<"LOAD UpdateHours UNIFORM ----------------------"<<m<<gNormLoad[m]<<gSatLoad[m]<<gSunLoad[m]<<restDay[m];
+		v = y /24;
+			for(int i=0;i<24;i++){
+				
+				hLoad[i+24*m] = v; 
+				hLoadPercent[i+24*m] = 100.0/24;
+				tableHourly->item(i,1)->setText(QString("%L1").arg(v,0,'f',2));
+				if (v<0.000000002)
+				tableHourly->item(i,0)->setText(QString::number(0));
+				else
+				tableHourly->item(i,0)->setText(QString("%L1").arg(hLoadPercent[i+24*m]));
+				
+				}
+		labelTotal->setText(QString::number(y));
+		if (v<0.000000002)
+			labelTotalPercent->setText(QString::number(0));
+		else
+			labelTotalPercent->setText(QString::number(100));
+		doNotCheckHours = false;
+		break;
+		case hTipico:
+		res = getMonthlyLoad(m);
+		y    = res.at(0);/*normal days*/	
+		gNormLoad[m ] = y;
+		gSatLoad[m ] = res.at(1);/*The same profile as in normal days */
+		gSunLoad[m  ] = res.at(2);/*The same profile as in normal days */
+		
+		labelWarningHours->setText("");
+ 		qDebug()<<"LOAD UpdateHours summer TIPICO-----------------"<<m;
+		doNotCheckHours = true;
+			for(int i=0;i<24;i++){
+				v = y*typicalProfile[i]/100.0;
+				hLoad[i+24*m] 	     = v; 
+				hLoadPercent[i+24*m] = typicalProfile[i];
+			
+				tableHourly->item(i,1)->setText(QString("%L1").arg(v,0,'f',2));
+				if (v<0.000000000002)
+					tableHourly->item(i,0)->setText(QString::number(0));
+				else
+					tableHourly->item(i,0)->setText(QString("%L1").arg(typicalProfile[i]));
+				}
+		labelTotal->setText(QString::number(y));
+		if (mLoadValue[m]<0.0000000002)
+			labelTotalPercent->setText(QString::number(0));
+		else
+			labelTotalPercent->setText(QString::number(100));
+		
+		doNotCheckHours = false;
+			
+		break;
+		case hCustom:
+			 
+			doNotCheckHours = true;
+			qDebug()<<"LOAD updateHours CUSTOM";
+// 			s=0;
+// 			p=0;
+// 			s = MyMath::cumSum(hLoad,m*24,m*24+23);
+// 			p = MyMath::cumSum(hLoadPercent,m*24,m*24+23);
+			
+			for(int i=0;i<24;i++){
+				 
+				
+// 				v =hLoad[i+24*m]; 
+//  				s += v;
+// //  				p+= v;
+// 				tableHourly->item(i,1)->setText(QString("%L1").arg(hLoad[i+24*m]));
+				tableHourly->item(i,1)->setText(QString::number(hLoad[i+24*m]));
+ 				tableHourly->item(i,0)->setText(QString("%L1").arg(hLoadPercent[i+24*m],0,'f',8));
+				qDebug()<<"LOAD updateHours out"<<hLoadPercent[i+24*m]<<hLoad[i+24*m]<<m;
+				 
+				}
+			
+// 			tableHourly->item(24,1)->setText(QString::number(p*100.0/s));
+  			doNotCheckHours = false;
+			
+  			checkHourlyData(tableMonthly->currentItem());
+
+// 		labelTotal->setText(QString::number(s));
+// 		labelTotalPercent->setText(QString::number(p));
+		break;
+		case hCommercial:
+		res = getMonthlyLoad(m);
+		y = res.at(0);/*normal days*/
+		gNormLoad[m ] = res.at(0);
+		gSatLoad[m  ] = res.at(1);/*The same profile as in normal days */
+		gSunLoad[m  ] = res.at(2);/*The same profile as in normal days */
+		
+		labelWarningHours->setText("");
+ 		qDebug()<<"LOAD UpdateHours summer COMMERCIAL-----------------"<<m;
+		doNotCheckHours = true;
+			for(int i=0;i<24;i++){
+				v = y*typicalCommercial[i]/100.0;
+				hLoad[i+24*m] 	     = v; 
+				hLoadPercent[i+24*m] = typicalCommercial[i];
+				tableHourly->item(i,1)->setText(QString("%L1").arg(v,0,'f',2));
+				if (v<0.000000000002)
+					tableHourly->item(i,0)->setText(QString::number(0));
+				else
+					tableHourly->item(i,0)->setText(QString("%L1").arg(typicalCommercial[i]));
+				}
+		labelTotal->setText(QString::number(y));
+		if (mLoadValue[m]<0.0000000002)
+			labelTotalPercent->setText(QString::number(0));
+		else
+			labelTotalPercent->setText(QString::number(100));
+		
+		doNotCheckHours = false;
+		break;
+		case hIndustrial:
+		
+		res = getMonthlyLoad(m);
+		y = res.at(0);/*normal days*/
+		gNormLoad[m ] = res.at(0);
+		gSatLoad[m  ] = res.at(1);/*The same profile as in normal days */
+		gSunLoad[m  ] = res.at(2);/*The same profile as in normal days */
+		labelWarningHours->setText("");
+ 		qDebug()<<"LOAD UpdateHours summer TIPICO-----------------"<<m;
+		doNotCheckHours = true;
+			for(int i=0;i<24;i++){
+				v = y*typicalIndustrial[i]/100.0;
+				hLoad[i+24*m] 	     = v; 
+				hLoadPercent[i+24*m] = typicalIndustrial[i];
+				tableHourly->item(i,1)->setText(QString("%L1").arg(v,0,'f',2));
+				if (v<0.000000000002)
+					tableHourly->item(i,0)->setText(QString::number(0));
+				else
+					tableHourly->item(i,0)->setText(QString("%L1").arg(typicalIndustrial[i]));
+				}
+		labelTotal->setText(QString::number(y));
+		if (mLoadValue[m]<0.0000000002)
+			labelTotalPercent->setText(QString::number(0));
+		else
+			labelTotalPercent->setText(QString::number(100));
+		
+		doNotCheckHours = false;
+		break;
+		case hNone:
+		labelWarningHours->setText("");
+ 		qDebug()<<"LOAD UpdateHours NONE---------------------"<<m<<hourlyProfile[m];
+		doNotCheckHours = true;
+		 
+		v = 0;
+			for(int i=0;i<24;i++){
+				
+				hLoad[i+24*m] = v; 
+				hLoadPercent[i+24*m] = 0;
+				tableHourly->item(i,1)->setText(QString::number(v));
+				 
+				tableHourly->item(i,0)->setText(QString::number(0));
+				 
+				
+				}
+		labelTotal->setText(QString::number(0));
+		 
+			labelTotalPercent->setText(QString::number(0));
+		qDebug()<<"LOAD update end before break";
+		doNotCheckHours = false;
+		break;
+	}
+	qDebug()<<"LOAD comboHOurly before";
+	comboHourly->setCurrentIndex(hourlyProfile[m]);
+	qDebug()<<"LOAD updateHourlyItem before";
+	updateHourlyItems();
+	updateHourlyPlot(m); 
+	updateWeeklyPlot(m); 
+}
+void Load::updateWeeklyPlot(int m)
+{
+	QwtArray<QwtDoubleInterval> intervals(7);
+	QwtArray<double> values(7);
+	int pivot;
+	double pos=0.5;
+	
+	for(int i=0;i<7;i++)
+	{
+		if (restDay[m]==7)
+			pivot = 6;
+		else
+			pivot = restDay[m];
+
+		intervals[i] = QwtDoubleInterval(pos, pos + 1);
+		pos += 1;
+		if (i==5)
+			values[i] = gSatLoad[m];
+		if (i==pivot)
+			values[i] = gSunLoad[m];
+		if (i!=pivot)
+			values[i] = gNormLoad[m];
+	qDebug()<<"LOAD UpdateWeeklyPlot"<<i<<restDay[m]<<values[i]<<gSunLoad[m]<<gSatLoad[m];
+	}
+	
+	plotW->setData(QwtIntervalData(intervals, values));
+	
+ 
+	qwtWeekly->replot();
+}
+void Load::updateMonthlyPlot()
+{
+	QwtArray<QwtDoubleInterval> intervals(12);
+	QwtArray<double> values(12);
+	double pos=0.5;
+	for(int i=0;i<12;i++)
+	{
+		intervals[i] = QwtDoubleInterval(pos, pos + 1);
+		pos += 1;
+		values[i] = mLoadValue[i];
+	}
+	
+	plotM->setData(QwtIntervalData(intervals, values));
+	
+// 	QwtText tlabel(tr("Consumo totale orario - Mese di ") + MyMath::months(month+1));
+// 	tlabel.setFont(QFont("Times",14,QFont::Normal));
+// 	qwtHourly->setTitle(tlabel);
+	qwtMonthly->replot();
+}
+void Load::updateHourlyPlot(int month)
+{
+	QwtArray<QwtDoubleInterval> intervals(24);
+	QwtArray<double> values(24);
+	 double pos=0.5;
+	
+	for(int i=0;i<24;i++)
+	{
+		intervals[i] = QwtDoubleInterval(pos, pos + 1);
+		pos += 1;
+		values[i] = hLoad[month*24 + i];
+	}
+	
+		
+		
+		plot->setData(QwtIntervalData(intervals, values));
+	
+	QwtText tlabel(tr("Consumo orario - Mese di ") + MyMath::months(month+1));
+	QwtText tWlabel(tr("Consumo nella settimana - Mese di ") + MyMath::months(month+1));
+	tlabel.setFont(QFont("Times",14,QFont::Normal));
+	tWlabel.setFont(QFont("Times",14,QFont::Normal));
+	qwtHourly->setTitle(tlabel);
+	qwtWeekly->setTitle(tWlabel);
+	qwtHourly->replot();
+	qwtWeekly->replot();
+}
+void Load::updateMonths()
+{
+	double a,total,v;
+	a = QLocale().toDouble(lineAnnui->text());
+// 	qDebug()<<"updateMOnth begin"<<monthlyProfile;
+	switch (monthlyProfile) {
+	
+	case (Uniform):
+		monthlyLoadPrev  = monthlyLoad;
+		
+// 		labelWarning->setText("");
+		monthlyLoad.resize(0);
+		doNotCheck = true;
+		for(int mm=0;mm<12;mm++){
+  			v= a/12.0;
+  			tableMonthly->item(1,mm)->setText(QString("%L1").arg(v,0,'f',2));
+			tableMonthly->item(1,mm)->setBackground(QBrush());
+			tableMonthly->item(0,mm)->setText(QString("%L1").arg(v,0,'f',2));
+			tableMonthly->item(0,mm)->setBackground(QBrush());
+			monthlyLoad<< v;
+			
+		}
+// 		qDebug()<<"updateMOnth begin2"<<monthlyProfile;
+		tableMonthly->item(0,12)->setText(QString::number(a));
+		tableMonthly->item(1,12)->setText(QString::number(100));
+		tableMonthly->item(0,12)->setBackground(QBrush());
+		
+		doNotCheck = false;
+		valueDirty = true;
+		mLoadValue.resize(0);
+		mLoadValue = monthlyLoad;
+		qDebug()<<"updateMOnth begin2"<<mLoadValue;
+	break;
+	case Summer:
+		doNotCheck = true;
+// 		labelWarning->setText("");
+		monthlySummerLoadPrev = monthlySummerLoad;
+		monthlySummerLoad.resize(0);
+		for(int mm=0;mm<12;mm++){
+			if (mm>4 && mm<9) {
+				tableMonthly->item(1,mm)->setText(QString("%L1").arg(12.5));
+				tableMonthly->item(0,mm)->setText(QString("%L1").arg(a*12.5/100.0,0,'f',2));
+				monthlySummerLoad<<a*12.5/100;
+			}
+			else
+			{
+				tableMonthly->item(1,mm)->setText(QString("%L1").arg(6.25,0,'f',2));
+				tableMonthly->item(0,mm)->setText(QString("%L1").arg(a*6.25/100.0,0,'f',2));
+				monthlySummerLoad<<a*6.25/100;
+			}
+		
+		}
+		tableMonthly->item(0,12)->setText(QString::number(a));
+		tableMonthly->item(1,12)->setText(QString::number(100));
+		mLoadValue = monthlySummerLoad;
+		doNotCheck = false;
+		valueDirty = true;
+	break;
+	case Winter:
+		doNotCheck = true;
+// 		labelWarning->setText("");
+		monthlyWinterLoadPrev = monthlyWinterLoad;
+		monthlyWinterLoad.resize(0);
+		for(int mm=0;mm<12;mm++){
+			if (mm>5 && mm<8) {
+				tableMonthly->item(1,mm)->setText(QString("%L1").arg(6.25));
+				tableMonthly->item(0,mm)->setText(QString("%L1").arg(a*6.25/100.0));
+				monthlyWinterLoad<<a*6.25/100;
+			}
+			else
+			{
+				tableMonthly->item(1,mm)->setText(QString("%L1").arg(12.5));
+				tableMonthly->item(0,mm)->setText(QString("%L1").arg(a*12.5/100.0));
+				monthlyWinterLoad<<a*12.5/100;
+			}
+		
+		}
+		tableMonthly->item(0,12)->setText(QString("%L1").arg(a));
+		tableMonthly->item(1,12)->setText(QString::number(100));
+		mLoadValue = monthlyWinterLoad;
+		doNotCheck = false;
+		valueDirty = true;
+	break;
+	case SeasonalWinter:
+	doNotCheck = true;
+// 		labelWarning->setText("");
+		mLoadValue.resize(0);
+		monthlyWinterLoadPrev = monthlyWinterLoad;
+		monthlyWinterLoad.resize(0);
+		for(int mm=0;mm<12;mm++){
+			v= (10+dFactor->value()*sin(2*pi*(mm-9)/12))/10 *a/12;
+// 			qDebug()<<"LOAD SEASONAL WINTER-----------------------"<<v;
+  			tableMonthly->item(1,mm)->setText(QString("%L1").arg(v,0,'f',2));
+			tableMonthly->item(1,mm)->setBackground(QBrush());
+			tableMonthly->item(0,mm)->setText(QString("%L1").arg(v,0,'f',2));
+			tableMonthly->item(0,mm)->setBackground(QBrush());
+			mLoadValue<< v;
+		
+		}
+		tableMonthly->item(0,12)->setText(QString("%L1").arg(a));
+		tableMonthly->item(1,12)->setText(QString::number(100));
+	 
+		doNotCheck = false;
+		valueDirty = true;
+	break;
+	case SeasonalSummer:
+		doNotCheck = true;
+// 		labelWarning->setText("");
+		mLoadValue.resize(0);
+		monthlyWinterLoadPrev = monthlyWinterLoad;
+		monthlyWinterLoad.resize(0);
+		for(int mm=0;mm<12;mm++){
+			v= (10+dFactor->value()*sin(2*pi*(mm-3)/12))/10 *a/12;
+// 			qDebug()<<"LOAD SEASONAL SUMMER-----------------------"<<v;
+  			tableMonthly->item(1,mm)->setText(QString("%L1").arg(v,0,'f',2));
+			tableMonthly->item(1,mm)->setBackground(QBrush());
+			tableMonthly->item(0,mm)->setText(QString("%L1").arg(v,0,'f',2));
+			tableMonthly->item(0,mm)->setBackground(QBrush());
+			mLoadValue<< v;
+		
+		}
+		tableMonthly->item(0,12)->setText(QString("%L1").arg(a));
+		tableMonthly->item(1,12)->setText(QString::number(100));
+	 
+		doNotCheck = false;
+		valueDirty = true;
+	break;
+	case Custom:
+		doNotCheck = true;
+// 		labelWarning->setText("");
+		monthlyCustomLoadPrev = monthlyCustomLoad;
+		monthlyCustomLoad.resize(0);
+ 		
+		total = MyMath::cumSum(mLoadValue);
+		qDebug()<<"LOAD updateMonths custom total"<<total;
+	
+		for(int mm=0;mm<12;mm++){
+		
+				tableMonthly->item(0,mm)->setText(QString("%L1").arg(mLoadValue[mm]));
+				
+				if (total>0.000000002)
+ 				tableMonthly->item(1,mm)->setText(QString("%L1").arg(mLoadValue[mm]*100.0/total));
+ 				else
+ 				tableMonthly->item(1,mm)->setText(QString::number(0));
+				
+		}
+		
+		doNotCheck = false;
+  		checkData(tableMonthly->item(0,0));
+		valueDirty = true;
+	break;
+	
+	}
+updateMonthlyPlot();
+}
+
+ 
+void Load::setMonthlyProfile(int i)
+{
+	if (i>0 && i<=5)
+			monthlyProfile = i;
+	else
+			monthlyProfile = Uniform;
+	
+	if (i!=Custom)
+		lineAnnui->setReadOnly(false);
+	else
+		lineAnnui->setReadOnly(true);
+	if (i==3 || i==4)
+		dFactor->setEnabled(true);
+	else
+		dFactor->setEnabled(false);
+	
+	if (!doNotCheck){
+// 		qDebug()<<"LOAD setMonthlyProfile notcheck..."<<doNotCheck;
+		updateMonths();
+		if (tableMonthly->currentItem())
+			updateHours(tableMonthly->currentItem());
+		else{
+			tableMonthly->setCurrentCell(0,0);
+			updateHours(tableMonthly->currentItem());
+		}
+
+	}
+	
+}
+ 
+ void Load::setHourlyProfile(int i)
+{
+ 	qDebug()<<"Update hourly profile to----------------------------------"<<i;
+	QList<QTableWidgetSelectionRange> sel;	
+	sel = tableMonthly->selectedRanges();
+// 	int m = tableMonthly->currentColumn(); // current month
+
+	for(int k=0;k<sel.size();k++){
+		for(int m=sel.at(k).leftColumn();m<=sel.at(k).rightColumn();m++){
+			if (i>0 && i<=5)
+					hourlyProfile.replace(m,i);
+			else
+					hourlyProfile.replace(m,Uniform);
+//   			qDebug()<<"selection range"<<m;	
+			quotaSat[m] = dQuotaSabato->value();
+			quotaSun[m] = dQuotaDomenica->value();
+			restDay[m]  = getClosingDay();		
+			updateHours(tableMonthly->item(0,m));
+		}
+	}
+/*	if (tableMonthly->currentItem())
+			updateHours(tableMonthly->currentItem());
+		else{
+			tableMonthly->setCurrentCell(0,0);
+			updateHours(tableMonthly->currentItem());
+		}*/
+//   	updateHours();
+	
+}
+void Load::setDefault()
+/* Uniform distribution and zero values. Initialization of Headers */
+{
+	int endMonth,startMonth,startDay,kk;
+	QStringList he(monthsList);
+	he<<"Totale";
+	startMonth = 1;
+	startDay   =1;
+	kk=0;
+	QString a;
+	QStringList l,l2;
+	l<<"kWh"<<"%";
+	l2<<"%"<<"kWh";
+	//Header of Months
+	tableMonthly->setHorizontalHeaderLabels(he);
+	tableMonthly->setVerticalHeaderLabels(l);
+	
+
+	
+	
+
+	
+	 
+	
+ 	for(int mm=1;mm<=12;mm++) {
+		
+		QTableWidgetItem *item = new QTableWidgetItem;
+		QTableWidgetItem *itemPercent = new QTableWidgetItem;
+		
+		item->setText( QString::number(0000.00));
+		
+		itemPercent->setText(QString::number(00.00));
+		item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+		itemPercent->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+		tableMonthly->setItem(0,mm-1,item);
+		tableMonthly->setItem(1,mm-1,itemPercent);
+		/* Take care of February forever*/
+// 		if (mm==2)
+// 			endMonth = 29;
+// 		else
+// 			endMonth = MyMath::monthEnd(mm,year);
+		 
+		mLoadValue<<0.0;
+		gNormLoad<< 0.0;
+		gSunLoad << 0.0;
+		gSatLoad << 0.0;	
+		quotaSat << dQuotaSabato->value();
+		quotaSun << dQuotaDomenica->value();
+		
+		restDay  << getClosingDay();
+		hourlyProfile<< Uniform; //default value
+			for(int h=0;h<24;h++)
+			{
+				 
+					QTableWidgetItem *itemH = new QTableWidgetItem;
+					QTableWidgetItem *itemHPercent = new QTableWidgetItem;
+					itemH->setText(QString::number(00000.00));
+					itemH->setFlags(Qt::ItemIsSelectable);
+					itemHPercent->setText(QString::number(00.00));
+					itemPercent->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEditable);
+					tableHourly->setItem(h,1,itemH);
+					tableHourly->setItem(h,0,itemHPercent);
+				 
+				hLoad<< 0.0;
+				hLoadPercent<< 0.0;
+				loadValue<< 0.0;
+				kk++;
+			}
+		 
+	}	
+	//ADD the total
+	QTableWidgetItem *item = new QTableWidgetItem;
+	QTableWidgetItem *itemPercent = new QTableWidgetItem;
+	item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+	itemPercent->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+	item->setText( QString("%L1").arg(00));
+	itemPercent->setText( QString("%L1").arg(00));
+	tableMonthly->setItem(0,12,item);
+	tableMonthly->setItem(1,12,itemPercent);
+
+	tableMonthly->resizeColumnsToContents();
+	
+	tableHourly->resizeColumnsToContents();
+	tableHourly->horizontalHeader()->setStretchLastSection(true);
+	tableHourly->setHorizontalHeaderLabels(l2);
+}
+void Load::saveProfile()
+{
+}
+void Load::montlhyChanged()
+{
+}
+ 
+void Load::hourlyChanged()
+{
+}
+void Load::setYear(int i)
+{
+	year = i;
+}
+Load::~Load()
+{
+}
+void Load::alignScales()
+{
+    // The code below shows how to align the scales to
+    // the canvas frame, but is also a good example demonstrating
+    // why the spreaded API needs polishing.
+
+    
+    qwtHourly->canvas()->setFrameStyle(QFrame::Box | QFrame::Plain );
+    qwtHourly->canvas()->setLineWidth(1);
+
+    qwtMonthly->canvas()->setFrameStyle(QFrame::Box | QFrame::Plain );
+    qwtMonthly->canvas()->setLineWidth(1);
+   
+    qwtWeekly->canvas()->setFrameStyle(QFrame::Box | QFrame::Plain );
+    qwtWeekly->canvas()->setLineWidth(1);
+
+    for ( int i = 0; i < qwtHourly->QwtPlot::axisCnt; i++ )
+    {
+        QwtScaleWidget *scaleWidget = (QwtScaleWidget *)(qwtHourly->axisWidget(i));
+        if ( scaleWidget )
+            scaleWidget->setMargin(0);
+
+        QwtScaleDraw *scaleDraw = (QwtScaleDraw *)qwtHourly->axisScaleDraw(i);
+        if ( scaleDraw )
+            scaleDraw->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+    }
+for ( int i = 0; i < qwtMonthly->QwtPlot::axisCnt; i++ )
+    {
+        QwtScaleWidget *scaleWidget = (QwtScaleWidget *)(qwtMonthly->axisWidget(i));
+        if ( scaleWidget )
+            scaleWidget->setMargin(0);
+
+        QwtScaleDraw *scaleDraw = (QwtScaleDraw *)qwtMonthly->axisScaleDraw(i);
+        if ( scaleDraw )
+            scaleDraw->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+    } 
+for ( int i = 0; i < qwtWeekly->QwtPlot::axisCnt; i++ )
+    {
+        QwtScaleWidget *scaleWidget = (QwtScaleWidget *)(qwtWeekly->axisWidget(i));
+        if ( scaleWidget )
+            scaleWidget->setMargin(0);
+
+        QwtScaleDraw *scaleDraw = (QwtScaleDraw *)qwtWeekly->axisScaleDraw(i);
+        if ( scaleDraw )
+            scaleDraw->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+    }
+}
+double Load::getHourlyLoad(int y,int hour,int day, int month)
+/* Values are only for typical days of every month */
+/* month are counted from 1 to 12 */
+/* hour between 0 and 23*/
+{
+		
+		double dailyValue,satValue,sunValue;
+		QDate da(y,month,day); 
+		int d = da.dayOfWeek();
+		
+		
+	if ((month>0 && month<13) && (hour>=0 && hour<24) )	
+		{
+		QVector<double> res = getMonthlyLoad(month-1);	
+		dailyValue = res.at(0);/*The daily value for normal days */
+ 		satValue   = res.at(1);/*The same profile as in normal days */
+ 		sunValue   = res.at(2);/*The same profile as in normal days */
+	 
+	
+		if (d==restDay[month])
+			return 0;	
+	
+		switch (d  )
+		{	
+			case (6):
+				return  satValue *hLoadPercent[hour+24*(month-1)]/100; 
+			break;
+			case (7):
+				return  sunValue *hLoadPercent[hour+24*(month-1)]/100; 
+			break;
+			default:
+			 	return  dailyValue *hLoadPercent[hour+24*(month-1)]/100; 
+			break;
+		}
+		
+		// Default: load are computed for non leap years. Therefore, adjust if it is necessary
+// 		if ((QDate::isLeapYear(y)) && (month==2))
+// 		//TODO
+// 		{
+// // 		qDebug()<<"LOAD LEAP YEAR"<<y<<month<<hour<<mLoadValue[month-1]<<hLoadPercent[24*(month-1)+hour];
+// 		return ( mLoadValue[month-1]/29 ) * hLoadPercent[24*(month-1)+hour]/100;
+// 		}
+// 		
+// 		else
+// 			
+// 		return hLoad[24*(month-1) + hour];
+		
+	}
+	else
+		return -1;
+}
+QPolygonF Load::getHourlyLoads(int y,int day, int month)
+/* Values are only for typical days of every month */
+/* month are counted from 1 to 12 */
+/* hour between 0 and 23*/
+{
+
+		double dailyValue,satValue,sunValue;
+		QDate da(y,month,day); 
+		int d = da.dayOfWeek();
+double value;
+QPolygonF out;
+	if ((month>0 && month<13) ){
+		// Default: load are computed for non leap years. Therefore, adjust if it is necessary
+	for(int hour=0;hour<24;hour++) {
+ 
+		QVector<double> res = getMonthlyLoad(month-1);	
+		dailyValue = res.at(0);/*The daily value for normal days */
+ 		satValue   = res.at(1);/*The same profile as in normal days */
+ 		sunValue   = res.at(2);/*The same profile as in normal days */
+	 
+	
+		if (d==restDay[month])
+			return QPolygonF();	
+	
+		switch (d )
+		{	
+			case (6):
+				
+				value =  satValue *hLoadPercent[hour+24*(month-1)]/100; 
+// 				qDebug()<<"GETHOURLYLOADS---------6---value="<<value<<day<<d<<month<<y;
+			break;
+			case (7):
+				value =  sunValue *hLoadPercent[hour+24*(month-1)]/100; 
+// 				qDebug()<<"GETHOURLYLOADS---------7---value="<<value<<day<<d<<month<<y;
+			break;
+			default:
+			 	value =  dailyValue *hLoadPercent[hour+24*(month-1)]/100; 
+// 				qDebug()<<"GETHOURLYLOADS---------0-5---value="<<value<<day<<d<<month<<y;
+			break;
+		}
+
+
+		 
+	out<<QPointF(hour,value);
+	}
+	}
+	else
+		out = QPolygonF();
+	return out;
+}
+void Load::save()
+{
+// 	Ask a;
+// 	if (!doNotAskAgain) {
+// 		if (a.exec()) {
+// 		
+// 			onlyCurrentMonth = a.onlyCurrentMonth();
+// 			doNotAskAgain = a.doNotAskAgain();
+// 			
+// 		}
+// 	}
+
+	if (fileCustom.isEmpty())
+		saveAs();
+	else
+		saveCustom(fileCustom);
+}
+void Load::saveAs()
+{
+		
+			onlyCurrentMonth = checkCurrentMonths->isChecked();
+	
+			
+	
+
+	QString fileName;
+	fileName = QFileDialog::getSaveFileName(this, tr("Salva consumi custom"), recentSave, tr(" (*.txt)"));
+	if (!fileName.isEmpty()){
+		fileCustom = fileName;
+	
+		
+		saveCustom(fileCustom);
+	}
+}
+void Load::saveCustom(  QString &fileName)
+{
+	int e;
+	fileName = MyMath::checkFormat(fileName,"txt");
+	QFile file(fileName);
+	if (!fileName.isEmpty() && file.open(QFile::WriteOnly) ) {
+		
+		
+		fileCustom = fileName;
+		QFileInfo fileInfo(fileName);
+		recentSave = fileInfo.absoluteDir().absolutePath();
+		
+		QTextStream out(&file);
+//  		qDebug()<<"LOAD salvo file"<<fileName<<file.fileName();
+	if (onlyCurrentMonth)
+		 e = 1;
+	else
+		e = 12;
+	
+		out<<"Monthly"<<"="<<monthlyProfile<<"\n";
+		out<<"Factor"<<"="<<dFactor->value()<<"\n";
+		out<<"Profiles"<<"\n";
+		for(int m=0;m<12;m++)
+			out<<mLoadValue[m]<<"\t"<<quotaSat[m]<<"\t"<<quotaSun[m]<<"\t"<<hourlyProfile[m]<<"\n";
+		out<<"Hourly percents"<<"\n";
+		for(int i=0;i<e;i++)
+			for(int k=0;k<24;k++)
+				out<<i*24 + k<<"\t"<<hLoad.at(i*24+k)<<"\t"<<hLoadPercent.at(i*24+k)<<"\n";
+		
+		
+	}
+	else
+	{
+	QMessageBox::warning(this,tr("Non riesco a scrivere nella cartella"),tr("Errore di scrittura nella cartella selezionata"),QMessageBox::Ok);
+	}
+}
+void Load::load()
+{
+	double temp;
+	if (loadCustom(""))
+		{
+		doNotCheck = true;
+		doNotCheckHours = true;
+		
+// 		monthlyProfile  =Custom;
+		/* set the month values*//*
+		mLoadValue.resize(0);
+		for (int i=0;i<12;i++){
+		hourlyProfile.replace(i,hCustom);
+		
+			temp = 0;
+			for(int k=0;k<24;k++){
+				temp +=hLoad.at(i*24+k) ;
+ 				qDebug()<<"LOAD load .............."<<i<<k<<temp<<hLoad.at(i*24+k)<<hLoadPercent.at(i*24+k);
+				}
+ 		qDebug()<<"LOAD load moooonth"<<temp;
+		mLoadValue<< temp * MyMath::monthEnd(i+1,year);
+		}*/
+ 
+		lineAnnui->setText(QString("%L1").arg(MyMath::cumSum(mLoadValue)));
+		comboMonthly->setCurrentIndex(monthlyProfile);
+  		doNotCheck = false;
+  		doNotCheckHours = false;
+//  
+ 		
+ 
+  		update();
+		
+		}
+		
+		
+}
+bool Load::loadCustom(const QString &input)
+{
+	QString s,fileName;
+	int count,countProfile,test;
+	QVector<double> temp,temp2;
+	bool startReadProfile,startReadHourly;
+	startReadProfile = false;
+	startReadHourly= false;
+	QStringList splitted;
+	if (input.isEmpty())
+		 fileName = QFileDialog::getOpenFileName(this, tr("File carichi medi"), recentDirCarichi, "Text files (*.txt)");
+	else
+		fileName = input;
+
+	
+	QFile file(fileName);
+	if (!fileName.isEmpty() &&  file.open(QFile::ReadOnly)) {
+  		recentDirCarichi = QFileInfo(fileName).absoluteDir().absolutePath();
+		QTextStream in(&file);
+		count =countProfile=test=0;
+		 while (!in.atEnd()) {
+ 			s = in.readLine();
+			s = s.simplified();
+			splitted = s.split("=");
+  			
+			if ((splitted.size()==2) && (splitted.at(0)=="Monthly") ){
+				qDebug()<<"LOAD READ MONTHLY ="<<splitted.at(1);
+  				monthlyProfile = QLocale().toInt(splitted.at(1));
+				test++;
+				continue;
+			}
+			if ((splitted.size()==2) && (splitted.at(0).simplified()=="Factor") ){
+				dFactor->setValue(QLocale().toDouble(splitted.at(1)));
+				qDebug()<<"LOAD READ FActor ="<<splitted.at(1);
+				test++;
+				continue;
+			}
+			if (s=="Profiles"){
+				qDebug()<<"LOAD READ STARTPROFILE ="<<s;
+				startReadProfile = true;
+				mLoadValue.resize(0);
+				hourlyProfile.resize(0);
+				quotaSat.resize(0);
+				quotaSun.resize(0);
+				countProfile =1;
+				test++;
+				continue;
+				}
+// 			
+// 	
+			if (startReadProfile) {	
+				
+				splitted = s.split(" ");
+				mLoadValue<<QLocale().toDouble(splitted.at(0));
+				quotaSat<< QLocale().toDouble(splitted.at(1));
+				quotaSun<< QLocale().toDouble(splitted.at(2));
+				hourlyProfile << QLocale().toInt(splitted.at(3));
+				qDebug()<<"LOAD READ STARTPROFILE DATA ="<<splitted.at(0)<<splitted.at(1)<<splitted.at(2)<<splitted.at(3)<<countProfile;
+				
+				if (countProfile>=12){
+					startReadProfile = false;
+					test++;
+				}
+				countProfile++;
+				
+				continue;
+			}
+			
+// 			qDebug()<<"LOAD READ"<<s;
+			if (s=="Hourly percents"){
+				startReadHourly=true;	
+				test++;
+				continue;
+			}
+
+			if (startReadHourly){
+
+				splitted = s.split(" ");
+				temp << QLocale().toDouble(splitted.at(1));
+				temp2<< QLocale().toDouble(splitted.at(2));
+// 			mPrezziEnergia[count] = s.toDouble();
+   			 qDebug()<<"LOAD READ PERCENT DATA";
+   				count++;
+  			}
+	
+		}
+	
+		if ((count!=288) || (test!=5)){
+			QMessageBox::critical(this,tr("Caricamento carichi elettrici"),tr("Troppi pochi dati.Ricontrolla il contenuto del file"),QMessageBox::Ok);
+			 
+			return false;
+		}
+		else
+			{
+			
+  			fileCustom = fileName;
+    	
+  			hLoad.resize(0);
+			hLoadPercent.resize(0);
+  			hLoad = temp;
+			hLoadPercent= temp2;
+  			qDebug()<<"LOAD loadCustom inside"<<hLoad.at(0)<<temp.size()<<temp2.size();	
+			return true;
+			}
+	}
+	else
+		return false;
+}
+QString Load::getFileCustom()
+{
+	return fileCustom;
+}
+void Load::setFileCustom(const QString& g)
+{
+	fileCustom = g;
+}
+void Load::notify()
+{
+	emit updated();
+	close();
+}
+
+int Load::getClosingDay()
+/*restDay must be between 0 and 6*/
+{
+	if (comboChiusura)
+		if (comboChiusura->currentIndex()==0)
+			return 7;
+		if (comboChiusura->currentIndex()==1)
+			return 6;
+		if (comboChiusura->currentIndex()>1)
+			return comboChiusura->currentIndex()-2;
+}

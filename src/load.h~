@@ -1,0 +1,97 @@
+#ifndef LOAD_H
+#define LOAD_H
+#include "mymath.h"
+#include "ui_consumi.h"
+
+class QwtPlotCurve;
+class HistogramItem;
+class Load : public QWidget, public Ui::widgetConsumi
+{
+	Q_OBJECT
+public:
+	Load(QWidget* parent=0);
+	~Load();
+	void setYear(int i);
+	QPolygonF getHourlyLoads(int year,int day,int month);
+	double getHourlyLoad(int year, int hour,int day,int month);
+	double getMonthly(int year, int month,int day, int hour);
+	bool isError();
+	void   setYearly(double d);
+	QString getFileCustom();
+	void setFileCustom(const QString &g);
+	int getLang();
+signals:
+	void updated();
+public slots:
+	void notify();
+	void load();
+	void save();
+	void saveAs();
+	void setMonthlyProfile(int i);
+	void setHourlyProfile(int i);
+	void setDefault();
+private slots:
+	void setRestDay(int i);
+	void setSunPercent(double c);
+	void setSatPercent(double c);
+	void settings();
+	void updateWeeklyPlot(int month);
+	void updateMonthlyPlot();
+	void updateHourlyPlot(int month);
+// 	void viewHours(QTableWidgetItem* current);
+	void storeItem(QTableWidgetItem* c);
+	void checkHourlyData(QTableWidgetItem* c);
+	void checkData(QTableWidgetItem* current );
+	void saveProfile();
+	void montlhyChanged();
+	 
+	void hourlyChanged();
+	void update();
+	void updateMonths();
+	void updateHours(QTableWidgetItem* a);
+	void updateHourlyItems();
+	 
+	void updateMonthlyItems();
+protected:
+	double getClosingDay();
+	QVector<double> getMonthlyLoad(int month);
+	void alignScales();
+	void saveCustom(  QString &fileName);
+	bool loadCustom(const QString &fileName);
+private:
+	QString w1,w2;
+// 	QwtPlotCurve* plot;
+	HistogramItem* plot,*plotM,*plotW;
+	bool isDirty,valueDirty,doNotCheck,doNotCheckHours,someError,doNotUpdate,doNotAskAgain,onlyCurrentMonth;
+	int monthlyProfile,year;
+	double currentItemValue,saturdayPercent,sundayPercent;
+	QStringList monthsList;
+	QVector<double> loadValue,mLoadValue,gSunLoad,gSatLoad,gNormLoad,quotaSat,quotaSun;
+	QVector<double> monthlyLoad,typicalProfile,typicalCommercial,typicalIndustrial;
+	QVector<double> monthlyLoadPrev,monthlySummerLoad,monthlySummerLoadPrev,monthlyWinterLoadPrev,monthlyWinterLoad,monthlyCustomLoadPrev, monthlyCustomLoad;
+	QVector<int> hourlyProfile,restDay;
+	QVector<double> hLoad,hLoadPercent;//entire vector
+	
+	enum
+	{	
+	Uniform,
+	Summer,
+	Winter,
+	SeasonalWinter,
+	SeasonalSummer,
+	Custom,
+	Commercial,
+	Industrial
+	};
+	enum
+	{
+	hNone,
+	hUniform,
+	hTipico,
+	hCustom,
+	hCommercial,
+	hIndustrial
+	};
+	QString fileCustom,recentSave,recentDirCarichi;
+};
+#endif

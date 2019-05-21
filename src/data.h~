@@ -1,0 +1,189 @@
+#ifndef DATISTRUCT_H
+#define DATISTRUCT_H
+#include <QtGui>
+struct panel {
+	QString fabric;
+	QString model;
+	double voc;
+	double vmp;
+	double isc;
+	double vmax;
+	double imp;
+	double noct;
+	double alfa;
+	double beta;
+	double gamma;
+	double H;
+	double L;
+	double s;
+	double pnom;
+	double eff;
+	double gar;
+	int indexDB;
+	bool isValid;
+	 
+
+	};
+struct inverter {
+	int isValid;
+	QString fabric;
+	QString model;
+	
+	double vmax;
+	double vmin;
+	double vmpmin,vmpmax,eff;
+	double imax;
+	
+	double pnom,pin;
+	int indexDB;
+	bool isvalid;	
+	double gar;
+
+};
+struct googleMap 
+	{
+		int latGradi;
+		int latMin;
+		int latSec;
+		int lonGradi;
+		int lonMin;
+		int lonSec;
+		double lat;
+		double lon;
+		QString name;
+	};
+struct loc  {
+		int albedoType;
+		int reg;
+		int prov;
+		int comune;
+		double lat;
+		double lon;
+		int latGradi;
+		int latMin;
+		int latSec;
+		int lonGradi;
+		int lonMin;
+		int lonSec;
+		int anno;
+		int utc;
+		double tempMin,tempMax;
+		double wind;
+		int mounting;
+		double mountingHeight;
+		double area;
+	        double alt;
+		double ore;
+		double albedo;
+		double azi;
+		double incl;
+		QVector<double> additionalAzi;
+		QVector<double> additionalIncl;
+		double concRatio ;
+	  	double radRealeAnnuaTotale;
+		double radRealeAnnuaMedia;
+		double radRealeBiAxAnnuaTotale;
+
+		double radRealeOmbreAnnuaTotale;
+		double radRealeBiAxOmbreAnnuaTotale;
+		double radDirettaAnnuaTotale;
+		double radDirettaAnnuaMedia;
+
+		int radCorrModel;/* UNI=1, ENEA=2*, Erbs=3*/
+		int ombreModel; /* sample and hold = 0, spline=1*/
+		int hourlyCorrModel; /*Kaplanis = 0, Pereira =1; Kyushu =2*/
+		QString name,coordinates,projectName;
+		
+		int tipo; /* 0= tilt fixed , 1= bi axis*/
+		int source;/* 0=Enea, 1=Custom,2=PVGIS,3=NASA*/
+		int radUnit;/*0 Mj, 1 kWh*/
+
+		double starRatio ; //kWh/kWp
+		
+		 
+	};
+struct option {
+	
+	QString ombrePath,nearOmbrePath;
+	QString tempPath ;
+	QString windPath;
+	double totalLossTemp;
+	double meanShadowLossFactor;
+	double totalShadowLossFactor;
+	QVector<double> thermalLosses;
+	QVector<double> shadows;
+	QVector<double> temperatures;
+	QVector<double> wind;	
+	QVector<double> otherLoss;
+	int thermalModel;
+	bool scaling;
+};
+
+struct ecopara {
+	double bonusPerkWp;
+	double assicurazione;
+	int assicurazioneAnni;
+	double ammortamento;
+	int ammortamentoAnni;
+	int regime;
+	QString fileBands;
+	QList<QStringList> bands;
+	QString fileTariffe;
+	double tariffe[12];
+/*
+	double transmissionFee;
+	double distributionFeekWh;
+	double distributionFeekW;
+	double distributionFeeYear;
+	double measureFeekWh;
+	double measureFeeYear;
+	double generalFeekWh;
+	double lossTransmissionFee;
+	double lossDistributionFee;
+	double ctrfeekWh;
+	double otherFeekWh;
+	double otherFeeMonth;*/
+	QString loadsFile;
+	QString filePrezziEnergia;
+	double prezziEnergia[12];	
+	QString filePrezziMinimi;
+	double prezziMinEnergia[12];
+	int prezziEnergiaModel;
+	QVector<double> prezziEnergiaGARCH;
+	double prezziEnergiaInflazione;
+	int prezziMinEnergiaModel;
+	QVector<double> minPrezziEnergiaGARCH;
+	double prezziMinEnergiaInflazione;
+	double	maintenanceCost;
+	double maintenanceS;
+	int    maintenanceSFreq;
+	double taxesCost;
+	double otherCost;
+	double benefitInitialCost;
+	double benefitTotalInterest;
+	double benefitVATCost;
+	double initialCost;
+	double loan;
+	int loanYears;
+	double loanInterestRate;
+	double inflRate;
+// 	double inflEnergyRate;
+	double discountRate;
+	double bonuses;
+	int life;
+	QString loadPath;
+};
+struct nasaObject {
+	QPolygonF data ;
+	bool status;
+	};
+struct sy {
+	QVector<int> campiVector;
+	QVector<int> panelVector;
+	QVector<double> efficiencies;
+	QStringList index;
+ 	QStringList models;
+	bool systemValid;
+	
+};
+#endif

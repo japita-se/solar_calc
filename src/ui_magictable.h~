@@ -1,0 +1,63 @@
+/********************************************************************************
+** Form generated from reading ui file 'magictable.ui'
+**
+** Created: Wed Nov 18 10:52:10 2009
+**      by: Qt User Interface Compiler version 4.5.0
+**
+** WARNING! All changes made in this file will be lost when recompiling ui file!
+********************************************************************************/
+
+#ifndef UI_MAGICTABLE_H
+#define UI_MAGICTABLE_H
+
+#include <QtCore/QVariant>
+#include <QtGui/QAction>
+#include <QtGui/QApplication>
+#include <QtGui/QButtonGroup>
+#include <QtGui/QHeaderView>
+#include <QtGui/QTableWidget>
+#include <QtGui/QWidget>
+
+QT_BEGIN_NAMESPACE
+
+class Ui_MagicTable
+{
+public:
+    QTableWidget *tableWidget;
+
+    void setupUi(QWidget *MagicTable)
+    {
+        if (MagicTable_2->objectName().isEmpty())
+            MagicTable_2->setObjectName(QString::fromUtf8("MagicTable_2"));
+        MagicTable_2->resize(900, 57);
+        tableWidget = new QTableWidget(MagicTable);
+        if (tableWidget->columnCount() < 12)
+            tableWidget->setColumnCount(12);
+        if (tableWidget->rowCount() < 1)
+            tableWidget->setRowCount(1);
+        tableWidget->setObjectName(QString::fromUtf8("tableWidget"));
+        tableWidget->setGeometry(QRect(10, 10, 871, 41));
+        tableWidget->setRowCount(1);
+        tableWidget->setColumnCount(12);
+        tableWidget->verticalHeader()->setVisible(false);
+
+        retranslateUi(MagicTable_2);
+
+        QMetaObject::connectSlotsByName(MagicTable_2);
+    } // setupUi
+
+    void retranslateUi(QWidget *MagicTable_2)
+    {
+        MagicTable_2->setWindowTitle(QApplication::translate("MagicTable_2", "Form", 0, QApplication::UnicodeUTF8));
+        Q_UNUSED(MagicTable_2);
+    } // retranslateUi
+
+};
+
+namespace Ui {
+    class MagicTable_2: public Ui_MagicTable_2 {};
+} // namespace Ui
+
+QT_END_NAMESPACE
+
+#endif // UI_MAGICTABLE_H

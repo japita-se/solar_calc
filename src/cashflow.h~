@@ -1,0 +1,89 @@
+#ifndef CASHFLOW_H
+#define CASHFLOW_H
+#include <QtGui>
+#include "data.h"
+ 
+#include <qwt_plot_marker.h>
+#include <qwt_plot.h>
+#include <qwt_plot_curve.h>
+ #include "ui_cashflow.h"
+class Settings;
+class QwtPlotPicker;
+class QPos;
+class GridSet;
+class QPoint;
+class QActions;
+class QwtPlotGrid;
+class QPolygonF;
+class HistogramItem;
+class QwtPlotCurve;
+ 
+class CashFlowPlot  :  public QWidget, public Ui::widgetCashFlow
+{
+	Q_OBJECT 
+public:
+  CashFlowPlot( QWidget *par =NULL);
+  ~CashFlowPlot();
+	QString getTable();
+	void setYearlyCost(const QPolygonF& a);
+	void setAmmNPV(const QPolygonF& a);
+	void setAmm(double a);
+	void setEcoParameters(const ecopara e);
+	void setRataNPV(const QPolygonF &a);
+	void setRata(const QPolygonF &a);
+	void setNPV(const QPolygonF &a);
+	void setRawCash(const QPolygonF &a);
+	void setInterestNPV(const QPolygonF &a);
+	void setInterest(const QPolygonF &a);
+	void setCS(const QPolygonF &a);
+	void setBonus(const QPolygonF &a);
+	void setConsumed(const QPolygonF &a);
+	void setProduced(const QPolygonF &a);
+	void toggleInterestPlot(int state);
+	void drawRata();
+	void drawRataNPV();
+	void drawInterest( );
+	void drawInterestNPV( );
+	void drawFlowCash( );
+	void drawNPV( );
+	QwtPlot* vanDiagram();
+	QwtPlot* rawDiagram();
+protected:
+	void sanityCheck();
+	void alignScales();
+	void setPlots(int years);
+	void createActions();
+private slots:	
+	void settings();
+	void updateSet();
+	void updateSetVan();
+	void gridset();
+	void updateTable();
+	void moved(const QPoint &pos);
+	void updateGrid();
+	void exportPNG();
+	void exportSVG();
+	void printOut();
+	void exportPDF();
+	void popUpMenu(const QPoint &p);
+protected:
+	QAction *a_print,*a_export,*a_exportPNG,*a_exportPDF,*a_create_grid,*a_proprieta;
+	QwtPlotPicker *picker;
+	QwtPlotGrid *grid,*grid2;	
+	GridSet* gridSettings;
+	QwtPlotCurve *csPlot;
+	QPointF cursorPos;
+	HistogramItem *vanPlot,*rawPlot,*interestPlot,*interestNPVPlot,*rataPlot,*rataNPVPlot;
+	QString recentExportPath,s;
+	QPolygonF npv,rawcash,interest,interestNPV,csData,produced,consumed,bonus,cs,rata,rataNPV,ammNPV,yearlyCost,yearlyCostNPV;
+	bool drawInterestFlag;
+	double amm;
+	Settings *set,*setVan;
+	ecopara eco;
+enum{
+	Vendita,
+	SSPIT,
+	SSP
+	};
+};
+#endif

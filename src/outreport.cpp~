@@ -1,0 +1,757 @@
+#include "mymath.h"
+#include "outreport.h"
+#include "qwt_plot.h"
+#include <QTextDocument>
+#include <QtGui>
+ #include <QTextTableFormat>
+#include <QPointF>
+#include <QPolygonF>
+#include <QFileInfo>
+OutReport::OutReport(QWidget* parent): m_document(new QTextDocument()),
+        m_cursor(m_document), QWidget(parent)
+
+{
+	version = "";
+	 recentDir = QDir::homePath();
+	 
+	
+	
+	models <<QObject::tr("UNI 8477 ")<<QObject::tr("ENEA")<<QObject::tr("Erbs");
+	types  <<QObject::tr("Tilt Fisso")<<QObject::tr("Inseguitore Biassiale")<<QObject::tr("Doppia falda");
+	sources<<QObject::tr("ENEA SolarEnergy")<<QObject::tr("Custom")<<QObject::tr("PVGIS")<<QObject::tr("NASA SSE");
+	mounting<<QObject::tr("Su guida")<<QObject::tr("BIPV")<<QObject::tr("Schiera e/o palo");
+	regime << QObject::tr("Vendita") << QObject::tr("SSP Italia 2009") << QObject::tr("Semplice Scambio");
+	Hset = false;
+	Eset = false;
+	ecoIsPresent = false;
+	totEnergy=0;
+	opt.otherLoss.fill(0,12);
+	opt.temperatures.fill(0,12);
+	opt.wind.fill(0,12);
+	opt.thermalLosses.fill(1,12);
+	opt.shadows.fill(1,12);
+	
+	opt.totalLossTemp = 0;
+	inv.isValid=false;
+	summaryTable="";
+	systemDetails.campiVector.fill(0,1);
+	
+	
+	 
+}
+
+OutReport::~OutReport()
+{
+delete m_document;
+}
+ void OutReport::addSolarDiagram(const QwtPlot * p)
+ {
+ 	solarDiagram  = p;
+ 	
+ }
+ void OutReport::addSolarRadiation(const QwtPlot * p)
+ {
+ 	solarRadiation  = p;
+ 	
+ }
+void OutReport::addSolarRadiation2(const QwtPlot * p)
+ {
+ 	solarRadiation2  = p;
+ 	
+ }
+ void OutReport::addEEnergy(const QwtPlot * p)
+ {
+ 	eEnergy  = p;
+ 	
+ }
+void OutReport::addVanDiagram(const QwtPlot* p)
+{
+	vanDiagram = p;
+}
+void OutReport::addRawDiagram(const QwtPlot* p)
+{
+	rawDiagram = p;
+}
+
+void OutReport::addTotEnergy(double a)
+{
+	totEnergy = a;
+}
+void OutReport::addLocation(loc l)
+{
+	localita = l;
+// 	qDebug()<<l.radCorrModel;
+}
+int OutReport::numPanels()
+{
+	int numPanels=0;;
+	if (localita.area != 0){
+		if ((pan.H*pan.L)>0)
+			numPanels = ceil(localita.area/(0.001*0.001*pan.H*pan.L));
+		else
+			if (pan.eff>0 & pan.eff<100)
+			
+			numPanels = ceil(localita.area*pan.eff/pan.pnom);
+			else
+			numPanels = -1;
+	
+	}
+	return numPanels;
+}
+void OutReport::addPanel(panel p)
+{
+	pan = p;
+	
+}
+void OutReport::addEnergy(const double* e)
+{
+	if (e!=NULL){
+	E = e;
+	Eset = true;
+	}
+}
+void OutReport::addRad(const double* rad)
+{
+	if (rad!=NULL){
+	H = rad;
+	Hset = true;
+	}
+}
+void OutReport::addInverter(inverter i)
+	
+{
+	inv = i;
+}
+void OutReport::addOption(option o)
+	
+{
+	opt = o;
+	if (opt.wind.isEmpty())
+		opt.wind.fill(0,12);
+	if (opt.temperatures.isEmpty())
+		opt.temperatures.fill(0,12);
+	
+
+		
+}
+void OutReport::addUnitRad(const QString &s)
+{
+	unit = s;
+}
+void OutReport::addUnitEnergy(const QString &s)
+{
+	unitEnergy = s;
+}
+QString OutReport::getDir()
+{
+	return recentDir;
+}
+void OutReport::setDir(const QString& s)
+{
+	recentDir = s;
+}
+
+void OutReport::print(QPrinter *printer,int mode)
+{
+	if (mode==1)
+	{
+		QString fileName;
+		fileName = QFileDialog::getSaveFileName(this, QObject::tr("Nome file da esportare"),  recentDir,"Acrobat ( *.pdf)");
+	
+		QFileInfo fileInfo(fileName);
+		recentDir = fileInfo.absoluteDir().absolutePath();
+		qDebug()<<"OR file"<<recentDir;
+		if ( !fileName.isEmpty() ) {
+		
+		fileName = MyMath::checkFormat(fileName,"pdf");
+		printer->setOutputFileName(fileName);
+		}
+		else
+			return;
+	}
+
+	QString title = " <h2>SolarCalc "+ version+ "- report</h2> ";
+	QStringList projectPath = localita.projectName.split("/");
+	QString projectName = projectPath.last();
+	m_document->clear();
+	m_cursor.clearSelection();
+	m_cursor.insertBlock();
+	
+	m_cursor.insertHtml(title);
+	
+	
+	m_cursor.movePosition(QTextCursor::End);
+	m_cursor.insertText(QDate::currentDate().toString() + ", " + QTime::currentTime().toString() + " - ProjectName: " + projectName);
+	m_cursor.movePosition(QTextCursor::End);
+	QTextCharFormat boldFormat;
+	boldFormat.setFontWeight(QFont::Bold);
+// 	 QPrinter printer(QPrinter::HighResolution);
+	
+	m_document->setPageSize(printer->pageRect().size());
+	QRect contentRect = QRect(QPoint(0,0), m_document->size().toSize());
+      	
+        
+// 	  QPainter painter;
+//          painter.begin(&printer);
+
+	QTextTableFormat tableFormat;
+	tableFormat.setCellPadding(0);
+	tableFormat.setCellSpacing(0);
+	tableFormat.setHeaderRowCount(1);
+	tableFormat.setBorderStyle(QTextFrameFormat::BorderStyle_None);
+	tableFormat.setWidth(QTextLength(QTextLength::PercentageLength,100));
+	
+	QTextTableFormat tableFormat2;
+	tableFormat2.setCellPadding(0);
+	tableFormat2.setHeaderRowCount(0);
+	tableFormat2.setBorderStyle(QTextFrameFormat::BorderStyle_None);
+	tableFormat2.setWidth(QTextLength(QTextLength::PercentageLength,100));
+
+	QTextTableFormat tableFormat3;
+	tableFormat3.setCellPadding(0);
+	tableFormat3.setHeaderRowCount(1);
+	tableFormat3.setBorderStyle(QTextFrameFormat::BorderStyle_Solid);
+	tableFormat3.setWidth(QTextLength(QTextLength::PercentageLength,100));
+	
+
+	QTextTableFormat tableHeader;
+	tableHeader.setCellPadding(0);
+	tableHeader.setHeaderRowCount(1);
+	tableHeader.setBorderStyle(QTextFrameFormat::BorderStyle_None);
+	tableHeader.setWidth(QTextLength(QTextLength::PercentageLength,100));
+	
+	
+// 	m_cursor.insertTable(1,1,tableHeader);
+// 	m_cursor.movePosition(QTextCursor::NextCell);
+	QString site =" <table bgcolor=\"lightGray\" border=\"0\"><tbody><tr  ><td width=\"800\">" + QObject::tr("Sito") +"</td></tr></tbody> </table>";
+	m_cursor.insertHtml(site);
+// 	m_cursor.insertText(QObject::tr("Sito"),boldFormat);
+	m_cursor.movePosition(QTextCursor::EndOfBlock);
+
+	m_cursor.insertTable(6,3,tableFormat);
+	m_cursor.insertText(QObject::tr("Comune"));
+	m_cursor.movePosition(QTextCursor::NextCell,QTextCursor::MoveAnchor,1);
+	m_cursor.insertText(localita.name);
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Latitudine"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(localita.lat));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	QString lat = (QString::number(localita.latGradi) +
+							  QString(QChar(0x2070)) +
+							  QString::number(localita.latMin)+
+							  "'" +
+							  QString::number(localita.latSec)+"''");
+	m_cursor.insertText(lat);
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Longitudine"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(localita.lon));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	QString lon =(QString::number(localita.lonGradi) +
+							  QString(QChar(0x2070)) +
+							  QString::number(localita.lonMin)+
+							  "'" +
+							  QString::number(localita.lonSec)+"''");
+	m_cursor.insertText(lon);
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Albedo"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+
+	if (localita.albedoType==con)
+	m_cursor.insertText(QString::number(localita.albedo));
+	if (localita.albedoType==variable_high_snow)
+	m_cursor.insertText(tr("Variabile con T (Zona di montagna nevosa)"));
+	if (localita.albedoType==variable_low_snow)
+	m_cursor.insertText(tr("Variabile con T (Zona di montagna)"));
+
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Vel. vento media annuale"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(MyMath::mean(opt.wind))+ " m/s");
+	
+	m_cursor.movePosition(QTextCursor::End);
+	m_cursor.insertBlock();
+
+// 	QImage geometry(300,200,QImage::Format_Mono);
+// 	QPainter painter(&geometry);
+// 	painter.setPen(QPen(Qt::black,12,Qt::SolidLine,Qt::RoundCap));
+// 	
+// 	QLineF line1(10,80,80,80);
+// 	QLineF line2(10,10,80,80);
+// 	painter.drawLine(line1);
+// 	painter.drawLine(line2);
+// 	
+// 	m_cursor.insertImage(geometry);
+	QString model =" <table bgcolor=\"lightGray\" border=\"0\"><tbody><tr  ><td width=\"800\">" + QObject::tr("Modello Radiazione") +"</td></tr></tbody> </table>";
+	m_cursor.insertHtml(model);
+	m_cursor.movePosition(QTextCursor::EndOfBlock);
+	m_cursor.insertTable(4,3,tableFormat);
+	
+	m_cursor.insertText(QObject::tr("Modello correlazione"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText((models.at(localita.radCorrModel-1)));
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Calcolo ombre"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QObject::tr("Integrazione diretta"));
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Sorgente"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(sources.at(localita.source));
+	m_cursor.movePosition(QTextCursor::End);
+	
+	QTextFrameFormat textFrame;
+	textFrame.setBorder(1);
+	textFrame.setBorderStyle(QTextFrameFormat::BorderStyle_Solid);
+
+	QTextFrameFormat noFrame;
+	noFrame.setBorder(0);
+	noFrame.setBorderStyle(QTextFrameFormat::BorderStyle_None);
+
+	m_cursor.insertFrame(textFrame);
+	m_cursor.insertTable(6,3,tableFormat2);
+	
+	m_cursor.insertText(QObject::tr("Tilt"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	if (localita.additionalIncl.size()>0)
+	m_cursor.insertText(QString::number(localita.incl)+ QString(QChar(0x2070)) + "/" + QString::number(localita.additionalIncl.at(0)) + QString(QChar(0x2070)));
+	else
+	m_cursor.insertText(QString::number(localita.incl)+ QString(QChar(0x2070)));
+
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Azimuth"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	if (localita.additionalAzi.size()>0)
+	m_cursor.insertText(QString::number(localita.azi)+ QString(QChar(0x2070)) + "/" + QString::number(localita.additionalAzi.at(0)) + QString(QChar(0x2070)));
+	else
+	m_cursor.insertText(QString::number(localita.azi)+ QString(QChar(0x2070)));
+
+	
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Area captante"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	if (localita.additionalArea.size()>0)
+	m_cursor.insertHtml(QString::number(localita.area) + "m<sup>2</sup>" + "/" + QString::number(localita.additionalArea.at(0)) +  "m<sup>2</sup>");
+	else
+	m_cursor.insertHtml(QString::number(localita.area) + "m<sup>2</sup>");
+
+	
+	
+// 	m_cursor.insertText(QString::number(localita.area)+ " m2");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Tipo"));
+ 	m_cursor.movePosition(QTextCursor::NextCell);
+  	m_cursor.insertText(types.at(localita.tipo));
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Tipo Installazione"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(mounting.at(localita.mounting));
+	m_cursor.movePosition(QTextCursor::NextCell);
+
+	if (localita.mounting==standoff)
+	m_cursor.insertText(QString::number(localita.mountingHeight)+ " m");
+	else
+	m_cursor.insertText("- m");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Fattore di concentrazione"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(localita.concRatio));
+	m_cursor.movePosition(QTextCursor::End);
+
+	m_cursor.insertTable(2,13,tableFormat3);
+	m_cursor.insertText(QObject::tr("Radiazione"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	 
+	for(int i=1;i<=12;i++) {
+// 		qDebug()<<MyMath::months(i);
+		m_cursor.insertText(MyMath::months(i));
+		m_cursor.movePosition(QTextCursor::NextCell);
+	}
+	 m_cursor.insertText("["+unit+"]");
+	 m_cursor.movePosition(QTextCursor::NextCell); 
+// 	m_cursor.insertText("");
+	for(int i=0;i<12;i++) {
+		if (Hset)
+		m_cursor.insertText(QString::number(H[i]));
+		else
+		m_cursor.insertText(QString::number(0));
+		m_cursor.movePosition(QTextCursor::NextCell);
+		
+	}
+	
+	m_cursor.movePosition(QTextCursor::End);
+	m_cursor.insertFrame(noFrame);
+
+	QString system =" <table bgcolor=\"lightGray\" border=\"0\"><tbody><tr  ><td width=\"800\">" + QObject::tr("Sistema") +"</td></tr></tbody> </table>";
+	m_cursor.insertHtml(system);
+	m_cursor.movePosition(QTextCursor::EndOfBlock);
+	m_cursor.insertFrame(textFrame);
+	m_cursor.insertTable(9,3,tableFormat2);
+// 	m_cursor.insertTable(7,3,tableFormat);
+	m_cursor.insertText(QObject::tr("Fabbricante, Modulo FV"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+
+	if (pan.isValid)
+	m_cursor.insertText(pan.fabric);
+	else
+	m_cursor.insertText(QObject::tr("Non disponibile"));
+
+	m_cursor.movePosition(QTextCursor::NextCell);
+	if (pan.isValid)
+	m_cursor.insertText(pan.model);
+	else
+	m_cursor.insertText(QObject::tr("Non disponibile"));
+
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QObject::tr("Potenza nominale modulo"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+
+	if (pan.isValid){
+	m_cursor.insertText(QString::number(pan.pnom) + " Wp");
+	m_cursor.movePosition(QTextCursor::NextCell);
+	}
+	else
+	m_cursor.movePosition(QTextCursor::NextCell);
+
+	if (pan.eff!=0 & pan.eff<100 & pan.isValid)
+	m_cursor.insertText(QString::number(pan.eff)+ " %");
+	else
+		m_cursor.insertText( "- %");
+	
+	m_cursor.movePosition(QTextCursor::NextRow);
+	
+	m_cursor.insertText(QObject::tr("Voc,Isc"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+
+	if (pan.isValid)
+	m_cursor.insertText(QString::number(pan.voc)+" V");
+	else
+	m_cursor.insertText("- V");
+
+	m_cursor.movePosition(QTextCursor::NextCell);
+	
+	if (pan.isValid)
+	m_cursor.insertText(QString::number(pan.isc)+" A");
+	else
+	m_cursor.insertText("- A");
+
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QObject::tr("Num. moduli, Pot. installata"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	int n= numPanels();
+	if (n>0)
+	m_cursor.insertText(QString::number(n));
+
+	m_cursor.movePosition(QTextCursor::NextCell);
+
+	if (n>0)
+	m_cursor.insertText(QString::number(n*pan.pnom) + " Wp");
+	else
+	m_cursor.insertText("- Wp");
+
+	
+	m_cursor.movePosition(QTextCursor::NextRow);
+		
+	if (systemDetails.models.isEmpty()){
+		m_cursor.insertText(QObject::tr("Inverter"));
+		m_cursor.movePosition(QTextCursor::NextCell);
+		m_cursor.insertText(inv.fabric +"-"+ inv.model);
+		m_cursor.movePosition(QTextCursor::NextCell);
+		
+		if (inv.isValid)
+		m_cursor.insertText(QString::number(inv.eff) + "%");
+		else
+		m_cursor.insertText("- %");
+	}
+	else
+	{
+		m_cursor.insertText(QObject::tr("Num. Inverters(*)"));
+		m_cursor.movePosition(QTextCursor::NextCell);
+		m_cursor.insertText(QString::number(systemDetails.campiVector.size()));
+		m_cursor.movePosition(QTextCursor::NextCell);
+// 		m_cursor.insertText(tr("(*)"));
+	}
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Perdite termiche totali"));
+ 	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(opt.totalLossTemp)+ " %");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Perdita annuale per ombreggiamento"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(opt.totalShadowLossFactor*100,'f',2)+ " %");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Fattore ombregg. medio mensile"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(opt.meanShadowLossFactor*100,'f',2)+ " %");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("BOS medio"));
+// 	m_cursor.movePosition(QTextCursor::NextCell);
+//  	m_cursor.insertText(QString::number(opt.meanShadowLossFactor));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(MyMath::mean(opt.otherLoss))+ " %");
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.movePosition(QTextCursor::EndOfBlock);
+	m_cursor.movePosition(QTextCursor::NextBlock);
+	
+	
+		
+   	
+	
+	QFont font;
+	QFont serifFont("Times", 10, QFont::Bold);
+	QTextCharFormat textFormat;
+	textFormat.setFont(font);
+	
+ 	m_cursor.movePosition(QTextCursor::NextBlock );
+	
+
+	m_cursor.insertFrame(textFrame);
+	m_cursor.insertText(QObject::tr("Valori medi mensili)"));
+	m_cursor.movePosition(QTextCursor::Down);
+	
+	m_cursor.insertTable(7,13,tableFormat3);
+	m_cursor.insertText("");
+	m_cursor.movePosition(QTextCursor::NextCell);
+
+	for(int i=1;i<=12;i++) {
+		 
+		m_cursor.insertText(MyMath::months(i));
+		m_cursor.movePosition(QTextCursor::NextCell);
+	}
+	 m_cursor.insertText("Energia["+unitEnergy+"]");
+	 m_cursor.movePosition(QTextCursor::NextCell); 
+// 	m_cursor.insertText("");
+	for(int i=0;i<12;i++) {
+		if (Eset)
+		m_cursor.insertText(QString::number(E[i]));
+		else
+		m_cursor.insertText(QString::number(0));
+		m_cursor.movePosition(QTextCursor::NextCell);
+		
+	}
+// 	m_cursor.movePosition(QTextCursor::NextRow);
+	
+	m_cursor.insertText("Fattore Ombre[%]");
+	m_cursor.movePosition(QTextCursor::NextCell); 
+	for(int i=0;i<12;i++) {
+		m_cursor.insertText(QString::number((opt.shadows.at(i))*100,'f',2));//This is a loss factor: if it is 100% there are no losses
+		m_cursor.movePosition(QTextCursor::NextCell);
+	}
+// 	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText("Perdite termiche[%]");
+	m_cursor.movePosition(QTextCursor::NextCell); 
+	for(int i=0;i<12;i++) {
+		m_cursor.insertText(QString::number((1-opt.thermalLosses.at(i))*100,'f',2));
+		m_cursor.movePosition(QTextCursor::NextCell);
+	}
+	m_cursor.insertText("Altre perdite[%]");
+	m_cursor.movePosition(QTextCursor::NextCell); 
+	for(int i=0;i<12;i++) {
+		m_cursor.insertText(QString::number((opt.otherLoss.at(i))*100,'f',2));
+		m_cursor.movePosition(QTextCursor::NextCell);
+	}
+// 	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText("Temp. medie[gradi]");
+	m_cursor.movePosition(QTextCursor::NextCell); 
+	for(int i=0;i<12;i++) {
+		m_cursor.insertText(QString::number(opt.temperatures.at(i),'f',2));
+		m_cursor.movePosition(QTextCursor::NextCell);
+	}
+// 	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText("Vento medio[m/s]");
+	m_cursor.movePosition(QTextCursor::NextCell); 
+	for(int i=0;i<12;i++) {
+		m_cursor.insertText(QString::number(opt.wind.at(i)));
+		m_cursor.movePosition(QTextCursor::NextCell);
+	}
+	m_cursor.movePosition(QTextCursor::End);
+	m_cursor.insertFrame(textFrame);
+	m_cursor.insertTable(2,3,tableFormat);
+	m_cursor.insertText(QObject::tr("Totale annuo"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.movePosition(QTextCursor::NextCell);
+	QString totale = "<strong>" + QString::number(totEnergy) + " "+ unitEnergy+"</strong>";
+	m_cursor.insertHtml(totale);
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Rendimento"));
+	m_cursor.movePosition(QTextCursor::NextCell); 
+	m_cursor.movePosition(QTextCursor::NextCell); 
+	QString totale2 = "<strong>" + QString::number(localita.starRatio,'f',2) + " kWh/kWp "+"</strong>";
+	m_cursor.insertHtml(totale2);
+	m_cursor.movePosition(QTextCursor::End);
+
+	QString preamble = "<br/>(*)<br/><table border=1 width=\"100%\"cellspacing=\"0\" cellpadding=\"3\" bordercolor=\"#980000\" >";
+		QString header   = "<tr  bgcolor=\"#C89800\"><td >" + tr("Inverter") + "</td><td >" + tr("Efficienza(%)") + "</td><td>" + tr("Stringhe")    + "</td><td>" + tr("Pannelli x Stringa") + "</td></tr>";
+		QString line = preamble + header;
+
+	if (!systemDetails.models.isEmpty() && systemDetails.systemValid) {
+		
+		for(int i=0;i<systemDetails.campiVector.size();i++){
+			
+			line += "<tr><td>" + systemDetails.models.at(i) + "</td><td>" + QString::number(systemDetails.efficiencies.at(i)) + "</td><td>" + QString::number(systemDetails.campiVector.at(i)) + 		"</td><td>" + QString::number(systemDetails.panelVector.at(i)) + "</td></tr>";
+	}
+	
+	}
+	else
+	{
+			line += "<tr><td>-</td></tr>";
+	}
+	line+="</table>";
+	
+	m_cursor.insertHtml(line);
+	m_cursor.movePosition(QTextCursor::End);
+// 	m_cursor.insertFrame(noFrame);
+// 	m_cursor.insertText(QObject::tr("Diagramma solare e ombre"));
+	QwtPlotPrintFilter filter; 
+         
+            int options = QwtPlotPrintFilter::PrintAll;
+            options &= ~QwtPlotPrintFilter::PrintBackground;
+            options |= QwtPlotPrintFilter::PrintFrameWithScales;
+            filter.setOptions(options);
+
+ 
+
+	QPainter p;
+	int pw 	      =  printer->pageRect().width();
+	int ph        =  printer->pageRect().height();
+	double paperW =  floor(printer->paperSize(QPrinter::DevicePixel).width());	
+	double paperH =  floor(printer->paperSize(QPrinter::DevicePixel).height());
+	
+	printer->setPaperSize(QPrinter::A4);
+	p.begin(printer); 
+	 
+	p.save();
+	m_document->adjustSize();
+	QTransform tra;
+ 	tra.scale(floor(paperH/printer->resolution()),floor(paperH/printer->resolution()));
+// 	tra.scale(11,11);
+	p.setTransform(tra);
+ 	
+ 	m_document->drawContents(&p,printer->paperRect());
+	
+//  qDebug()<<"OOOOOOOOOOOOOO"<<printer->pageRect()<<printer->paperSize(QPrinter::DevicePixel)<<printer->pageSize()<<p.viewport()<<pw<<ph<<paperH/printer->resolution()<<paperH/printer->resolution();
+	p.restore();
+	printer->newPage();
+	m_document->clear();
+	QRect rec(-10,0.4*ph,pw-10,0.6*ph);
+	QRect rec2(-10,0,pw-10,0.4*ph);
+	QRect rec3(-10,0.2*ph,pw-10,0.4*ph);
+	QRect rec4(-10,0.6*ph,pw-10,0.4*ph);
+	QRect rec5(-10,0,pw*0.5,0.4*ph);
+	QRect rec6(pw*0.5,0,pw*0.5,0.4*ph);
+// 	p.translate(0,0.65*ph);
+	if (localita.tipo==2){
+	if (solarRadiation)
+		solarRadiation->print(&p,rec5,filter);
+	if (solarRadiation2)
+		solarRadiation2->print(&p,rec6,filter);
+	}
+	else
+	if (solarRadiation)
+		solarRadiation->print(&p,rec2,filter);
+	if (solarDiagram)
+ 		solarDiagram->print(&p,rec,filter);
+
+if (ecoIsPresent){
+	printer->newPage();
+	
+	/*Second Page*/
+	m_document->clear();
+
+	QString ecoTitle =" <table bgcolor=\"lightGray\" border=\"0\"><tbody><tr  ><td width=\"800\">" + QObject::tr("Aspetti Economici") +"</td></tr></tbody> </table>";
+	m_cursor.insertHtml(ecoTitle);
+// 	m_cursor.insertText(QObject::tr("Sito"),boldFormat);
+	m_cursor.movePosition(QTextCursor::EndOfBlock);
+
+	m_cursor.insertTable(9,3,tableFormat);
+	m_cursor.insertText(QObject::tr("Costo Iniziale (valore unitario)"));
+	m_cursor.movePosition(QTextCursor::NextCell,QTextCursor::MoveAnchor,1);
+	m_cursor.insertText(QString("%1").arg(eco.initialCost));
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Tassi Inflazione/Inflazione Energia"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(eco.inflRate)+"%");
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(eco.prezziEnergiaInflazione)+"%");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Tasso di sconto/ interesse su finanziamento"));	
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(eco.discountRate)+"%");
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(eco.loanInterestRate)+"%");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Incentivi "));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(eco.bonuses)+" c/kWh");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Ammortamento/ Durata ammortamento"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(eco.ammortamento)+"%");
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(eco.ammortamentoAnni)+" anni");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Durata finanziamento"));
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(eco.loanYears)+" anni");
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Regime"));	
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(regime.at(eco.regime));
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.insertText(QObject::tr("Durate impianto (anni)"));	
+	m_cursor.movePosition(QTextCursor::NextCell);
+	m_cursor.insertText(QString::number(eco.life));
+	m_cursor.movePosition(QTextCursor::NextRow);
+	m_cursor.movePosition(QTextCursor::End);
+	m_document->adjustSize();
+	p.save();
+	p.setTransform(tra);
+ 
+	m_document->drawContents(&p,printer->paperRect());
+	p.restore();
+	if (rawDiagram && vanDiagram){
+		rawDiagram->print(&p,rec3,filter);
+		vanDiagram->print(&p,rec4,filter);
+	}
+
+	if (!summaryTable.isEmpty()){
+		printer->newPage();
+		/*Second Page*/
+		m_document->clear();
+		
+		m_cursor.insertHtml(tr("<h2>Esploso dati principali</h2>") + summaryTable);
+		p.save();
+		p.setTransform(tra);
+		m_document->drawContents(&p,printer->paperRect());
+		p.restore();
+	
+	}
+}
+	p.end();
+ 
+	
+	
+ 
+	
+	
+ 
+
+}
+void OutReport::setEcoParameters(ecopara o)
+{
+	eco = o;
+	ecoIsPresent = true;
+}
+void OutReport::setVersion(const QString &s)
+{
+	version = s;
+}
+void OutReport::setTable(const QString &s)
+{
+	summaryTable = s;
+}
+void OutReport::addSystem(sy  a)
+{
+	systemDetails = a;
+}
